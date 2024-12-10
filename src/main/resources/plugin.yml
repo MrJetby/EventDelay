@@ -1,0 +1,10 @@
+name: EventDelay
+version: '2.3'
+main: me.jetby.eventDelay.Main
+api-version: '1.13'
+prefix: EventDelay
+authors: [ TreexStudio ]
+description: Удобный менеджер ивентов
+website: https://dsc.gg/treexstudio
+commands:
+  event: {}

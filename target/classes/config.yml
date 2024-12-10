@@ -1,0 +1,62 @@
+license: "ЛИЦЕНЗИЯ"
+
+
+Timer: 1800 # В секундах
+
+# Если true то таймер заморозится если недостаточно игроков
+# Если false то таймер будет продолжать идти ни смотря на онлайн
+Freeze: true
+
+MinPlayers: 3 # Минимум игроков для срабатывания
+
+
+Events:
+  rareMyst:
+    Duration: 300 # В секундах. Время через которое ивент закончится
+    Prefix: "&dМистический сундук"
+    # Если не будете пользоваться компасом, тогда удалите строки compass и coordinates
+    compass: true
+    coordinates:
+      world: "%placeholder_world%"
+      x: "%placeholder_x%"
+      y: "%placeholder_y%"
+      z: "%placeholder_z%"
+
+    OpeningTime: 60 # В секундах. Через какое время ивент будет открыт. Эта функция подходит для мистиков как на FunTime. Если вам это не нужно тогда уберите эту строку
+    activeInfo: # Отображается в /event info
+      - ""
+      - "{prefix}"
+      - "Координаты: x y z"
+      - "Редкость: &5Эпический"
+      - "Статус: {active_status}"
+      - "До завершения: {duration} секунд"
+      - ""
+    warns:
+      time:
+        - 300
+        - 120
+        - 30
+      msg:
+        - ""
+        - "{prefix}"
+        - "Редкость: &5Эпический"
+        - "Ивент начнётся через &6{time_to_start}"
+        - ""
+    start-commands: # Команды на запуск ивента
+      - bair start epic
+    end-commands: # Пример запуска ивента через плагин BAirdrop
+      - say Ивент закончился
+
+
+  goldblock:
+    Duration: 300
+    Prefix: "&eЗолотой блок"
+    activeInfo:
+      - ""
+      - "{prefix}"
+      - "Координаты: x y z"
+      - "До завершения: {duration} секунд"
+      - ""
+    start-commands:
+      - goldblock start
+    end-commands: []

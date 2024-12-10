@@ -1,0 +1,135 @@
+package me.jetby.eventDelay;
+
+import me.jetby.eventDelay.Commands.TabCompleter;
+import me.jetby.eventDelay.Commands.EventCMD;
+import me.jetby.eventDelay.Configs.Config;
+import me.jetby.eventDelay.Configs.DB;
+import me.jetby.eventDelay.Utils.PlaceholderAPI;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.plugin.java.JavaPlugin;
+
+import java.io.*;
+import java.util.logging.Level;
+
+import static me.jetby.eventDelay.Manager.Timer.startTimer;
+import static me.jetby.eventDelay.Manager.Triggers.nextRandomEvent;
+import static me.jetby.eventDelay.Utils.License.checkLicense;
+import static me.jetby.eventDelay.Utils.License.getExternalIP;
+
+import org.bstats.bukkit.Metrics;
+public final class Main extends JavaPlugin {
+    public static YamlConfiguration cfg;
+    public static YamlConfiguration db;
+    public static YamlConfiguration messages;
+    public static Main INSTANCE;
+    public static boolean freeze;
+    public static int timer;
+    public static int minPlayers;
+    public static String nowEvent;
+    public static String nextEvent;
+    public static int TimerUntilNextEvent;
+    public static int duration;
+    public static int TimeUntilDuration;
+    public static int OpeningTimer;
+    public static String LICENSE_KEY;
+    public static final String API_URL = "http://e1.aurorix.net:20249";
+    public static String SERVER_IP;
+
+    public static Main getINSTANCE() {
+        return INSTANCE;
+    }
+
+    @Override
+    public void onEnable() {
+        LICENSE_KEY = getConfig().getString("license"); // Получаем ключ из config.yml
+        SERVER_IP = getExternalIP();
+        INSTANCE = this;
+
+        cfgReload();
+        messagesReload();
+        dbReload();
+
+        if (!checkLicense()) {
+            getLogger().warning("Лицензия недействительна, или IP ключа отличается от IP вашего сервера.");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        } else {
+            getLogger().info("Лицензия подтверждена, плагин загружается...");
+        }
+
+
+        // МЕТРИКА
+        int pluginId = 23730;
+        Metrics metrics = new Metrics(this, pluginId);
+
+
+        if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+            new PlaceholderAPI().register();
+        }
+
+
+        timer = Config.get().getTimer();
+        freeze = Config.get().getFreeze();
+        minPlayers = Config.get().getMinPlayers();
+        nextEvent = DB.get().getNextEvent();
+        nowEvent = DB.get().getNowEvent();
+
+        getCommand("event").setExecutor(new EventCMD());
+        getCommand("event").setTabCompleter(new TabCompleter());
+
+        startTimer();
+        nextRandomEvent();
+    }
+
+
+    public void cfgReload() {
+        File file = new File(getDataFolder().getAbsolutePath() + "/config.yml");
+        if (file.exists()) {
+            getLogger().log(Level.INFO, "Конфиг успешно загружен. (config.yml)");
+            cfg = YamlConfiguration.loadConfiguration(file);
+        } else {
+            saveResource("config.yml", false);
+            cfg = YamlConfiguration.loadConfiguration(file);
+        }
+    }
+
+    public void dbReload() {
+        File file = new File(getDataFolder().getAbsolutePath() + "/db.yml");
+        if (file.exists()) {
+            getLogger().log(Level.INFO, "Конфиг успешно загружен. (db.yml)");
+            db = YamlConfiguration.loadConfiguration(file);
+        } else {
+            saveResource("db.yml", false);
+            db = YamlConfiguration.loadConfiguration(file);
+        }
+    }
+
+    public void dbSave() {
+        try {
+            File file = new File(getDataFolder(), "db.yml");
+            db.save(file);
+        } catch (IOException e) {
+            getLogger().log(Level.SEVERE, "Не удалось сохранить файл db.yml", e);
+        }
+    }
+
+    public void messagesReload() {
+        File file = new File(getDataFolder().getAbsolutePath() + "/messages.yml");
+        if (file.exists()) {
+            getLogger().log(Level.INFO, "Конфиг успешно загружен. (messages.yml)");
+            messages = YamlConfiguration.loadConfiguration(file);
+        } else {
+            saveResource("messages.yml", false);
+            messages = YamlConfiguration.loadConfiguration(file);
+        }
+    }
+
+    public void cfgSave() {
+        try {
+            File file = new File(getDataFolder(), "config.yml");
+            cfg.save(file);
+        } catch (IOException e) {
+            getLogger().log(Level.SEVERE, "Не удалось сохранить файл config.yml", e);
+        }
+    }
+}
