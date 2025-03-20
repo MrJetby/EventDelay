@@ -1,6 +1,8 @@
 package me.jetby.eventDelay.Manager;
 
 
+import me.jetby.eventDelay.Main;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +19,9 @@ public class Assistants {
         } else {
             return nowEvent;
         }
+    }
+    public static void setNowEvent(String nowEvent) {
+        Main.nowEvent = nowEvent;
     }
 
     public static String getNextEvent() {
@@ -40,6 +45,7 @@ public class Assistants {
 
 
         int randomValue = new Random().nextInt(totalWeight) + 1;
+
 
 
         int currentWeight = 0;

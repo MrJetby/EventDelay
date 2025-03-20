@@ -16,8 +16,10 @@ me\jetby\eventDelay\Utils\Metrics$AdvancedBarChart.class
 me\jetby\eventDelay\Configs\DB.class
 me\jetby\eventDelay\Commands\TabCompleter.class
 me\jetby\eventDelay\Manager\Timer$3.class
+me\jetby\eventDelay\Utils\License$ReturnType.class
 me\jetby\eventDelay\Configs\Messages.class
 me\jetby\eventDelay\Manager\Triggers.class
+me\jetby\eventDelay\Utils\Webhook.class
 me\jetby\eventDelay\Utils\Metrics$MultiLineChart.class
 me\jetby\eventDelay\Utils\PlaceholderAPI.class
 me\jetby\eventDelay\Utils\License.class

@@ -61,7 +61,7 @@ public class Timer {
                         db.set("OpeningTime", "false");
                         getINSTANCE().cfgSave();
 
-                        triggerEvent(nowEvent);
+                        triggerEvent(getNowEvent());
 
                         TimerUntilNextEvent = timer;
 
@@ -90,7 +90,7 @@ public class Timer {
                     for (String command : commands) {
                         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
                     }
-                    nowEvent = "none";
+                    setNowEvent("none");
                     db.set("NowEvent", "none");
                     getINSTANCE().cfgSave();
                     cancel();
@@ -102,7 +102,7 @@ public class Timer {
 
 
     public static void Activate() {
-        OpeningTimer = cfg.getInt("Events." + nowEvent + ".OpeningTime");;  // Устанавливаем начальное время для ивента
+        OpeningTimer = cfg.getInt("Events." + getNowEvent() + ".OpeningTime", 120);  // Устанавливаем начальное время для ивента
         db.set("OpeningTime", "true");
 
         BukkitRunnable task = new BukkitRunnable() {

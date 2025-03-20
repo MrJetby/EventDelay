@@ -120,11 +120,11 @@ public class Messages {
         }
     }
 
-    public List<String> Time() { return time; }
-    public List<String> Active() { return active; }
+    public List<String> time() { return time; }
+    public List<String> active() { return active; }
     public List<String> noPlayers() { return noPlayers; }
-    public List<String> Info() { return info; }
-    public List<String> Usage() { return usage; }
+    public List<String> info() { return info; }
+    public List<String> usage() { return usage; }
     public String End() { return end; }
     public String NoItem() { return noItem; }
     public String None() { return none; }

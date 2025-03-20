@@ -1,5 +1,6 @@
 license: "ЛИЦЕНЗИЯ"
 
+debug: false
 
 Timer: 1800 # В секундах
 

@@ -12,6 +12,8 @@ public class Config {
     private int Timer;
     private boolean Freeze;
     private int MinPlayers;
+    private boolean Debug;
+    private int WebhookUrl;
 
     private Config() {
         load();
@@ -26,6 +28,7 @@ public class Config {
 
         license = cfg.getString("license", "ЛИЦЕНЗИЯ");
         Timer = cfg.getInt("Timer", 1800);
+        Debug = cfg.getBoolean("debug", false);
         Freeze = cfg.getBoolean("Freeze", false);
         MinPlayers = cfg.getInt("MinPlayers", 1);
 
@@ -35,5 +38,6 @@ public class Config {
     public int getTimer() {return Timer;}
     public int getMinPlayers() {return MinPlayers;}
     public boolean getFreeze() {return Freeze;}
+    public boolean getDebug() {return Debug;}
 
 }

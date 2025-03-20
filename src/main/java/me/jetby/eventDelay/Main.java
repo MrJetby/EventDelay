@@ -4,7 +4,9 @@ import me.jetby.eventDelay.Commands.TabCompleter;
 import me.jetby.eventDelay.Commands.EventCMD;
 import me.jetby.eventDelay.Configs.Config;
 import me.jetby.eventDelay.Configs.DB;
+import me.jetby.eventDelay.Utils.License;
 import me.jetby.eventDelay.Utils.PlaceholderAPI;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -13,8 +15,6 @@ import java.util.logging.Level;
 
 import static me.jetby.eventDelay.Manager.Timer.startTimer;
 import static me.jetby.eventDelay.Manager.Triggers.nextRandomEvent;
-import static me.jetby.eventDelay.Utils.License.checkLicense;
-import static me.jetby.eventDelay.Utils.License.getExternalIP;
 
 import org.bstats.bukkit.Metrics;
 public final class Main extends JavaPlugin {
@@ -31,9 +31,6 @@ public final class Main extends JavaPlugin {
     public static int duration;
     public static int TimeUntilDuration;
     public static int OpeningTimer;
-    public static String LICENSE_KEY;
-    public static final String API_URL = "http://e1.aurorix.net:20249";
-    public static String SERVER_IP;
 
     public static Main getINSTANCE() {
         return INSTANCE;
@@ -41,45 +38,55 @@ public final class Main extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        LICENSE_KEY = getConfig().getString("license"); // Получаем ключ из config.yml
-        SERVER_IP = getExternalIP();
-        INSTANCE = this;
-
         cfgReload();
         messagesReload();
         dbReload();
 
-        if (!checkLicense()) {
-            getLogger().warning("Лицензия недействительна, или IP ключа отличается от IP вашего сервера.");
-            getServer().getPluginManager().disablePlugin(this);
-            return;
+        Bukkit.getServer().getConsoleSender().sendMessage("-------> Login <-------");
+        License license = new License(getConfig().getString("license"), getConfig().getString("licenseLink", "https://treexstudio.site"), this);
+        license.request();
+        Bukkit.getServer().getConsoleSender().sendMessage(" |- License checking: "+license.getLicense());
+        if (license.isValid()) {
+            Bukkit.getServer().getConsoleSender().sendMessage("------------------------");
+            Bukkit.getServer().getConsoleSender().sendMessage(" |- Login accepted");
+            Bukkit.getServer().getConsoleSender().sendMessage(" |- Welcome: "+license.getLicensedTo());
+            Bukkit.getServer().getConsoleSender().sendMessage(" |- I am enabling all");
+            Bukkit.getServer().getConsoleSender().sendMessage(" |- the features for you");
+            Bukkit.getServer().getConsoleSender().sendMessage("------------------------");
+
+            INSTANCE = this;
+
+            // МЕТРИКА
+            int pluginId = 23730;
+            Metrics metrics = new Metrics(this, pluginId);
+
+
+            if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+                new PlaceholderAPI().register();
+            }
+
+            timer = Config.get().getTimer();
+            freeze = Config.get().getFreeze();
+            minPlayers = Config.get().getMinPlayers();
+            nextEvent = DB.get().getNextEvent();
+            nowEvent = DB.get().getNowEvent();
+
+            getCommand("event").setExecutor(new EventCMD());
+            getCommand("event").setTabCompleter(new TabCompleter());
+
+            startTimer();
+            nextRandomEvent();
         } else {
-            getLogger().info("Лицензия подтверждена, плагин загружается...");
+            Bukkit.getServer().getConsoleSender().sendMessage("------------------------");
+            Bukkit.getServer().getConsoleSender().sendMessage(" |- Login denied");
+            Bukkit.getServer().getConsoleSender().sendMessage(" |- Return error "+license.getReturn());
+            Bukkit.getServer().getConsoleSender().sendMessage("------------------------");
+
+            Bukkit.getPluginManager().disablePlugin(this);
         }
 
-
-        // МЕТРИКА
-        int pluginId = 23730;
-        Metrics metrics = new Metrics(this, pluginId);
-
-
-        if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            new PlaceholderAPI().register();
-        }
-
-
-        timer = Config.get().getTimer();
-        freeze = Config.get().getFreeze();
-        minPlayers = Config.get().getMinPlayers();
-        nextEvent = DB.get().getNextEvent();
-        nowEvent = DB.get().getNowEvent();
-
-        getCommand("event").setExecutor(new EventCMD());
-        getCommand("event").setTabCompleter(new TabCompleter());
-
-        startTimer();
-        nextRandomEvent();
     }
+
 
 
     public void cfgReload() {
@@ -114,7 +121,7 @@ public final class Main extends JavaPlugin {
     }
 
     public void messagesReload() {
-        File file = new File(getDataFolder().getAbsolutePath() + "/messages.yml");
+        File file = new File(getDataFolder(), "messages.yml");
         if (file.exists()) {
             getLogger().log(Level.INFO, "Конфиг успешно загружен. (messages.yml)");
             messages = YamlConfiguration.loadConfiguration(file);

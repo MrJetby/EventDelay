@@ -10,8 +10,6 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -21,6 +19,7 @@ import static me.jetby.eventDelay.Main.*;
 import static me.jetby.eventDelay.Manager.Assistants.*;
 import static me.jetby.eventDelay.Manager.Timer.Activate;
 import static me.jetby.eventDelay.Manager.Triggers.startRandomEvent;
+import static me.jetby.eventDelay.Manager.Triggers.stopEvent;
 import static me.jetby.eventDelay.Utils.Color.replace;
 import static me.jetby.eventDelay.Utils.FormatTimer.stringFormat;
 
@@ -34,7 +33,7 @@ public class EventCMD implements CommandExecutor {
                 Player p = (Player) sender;
 
                 if (args.length == 0) {
-                    for (String msg : Messages.get().Usage()) {
+                    for (String msg : Messages.get().usage()) {
                         sender.sendMessage(replace(msg, p));
                     }
                     return true;
@@ -53,17 +52,18 @@ public class EventCMD implements CommandExecutor {
                             return true;
                         }
                         if (isEventActive()) {
-                            for (String m : Messages.get().Active()) {
-                                m = replace(m, p);
-                                sender.sendMessage(m
+                            for (String m : Messages.get().active()) {
+                                m = m
                                         .replace("{time_to_start}", String.valueOf(getTime()))
                                         .replace("{time_to_start_string}", stringFormat(getTime()))
-                                        .replace("{prefix}", cfg.getString("Events." + getNowEvent() + ".Prefix", "none"))
-                                );
+                                        .replace("{prefix}",getActiveEventPrefix())
+                                ;
+                                m = replace(m, p);
+                                sender.sendMessage(m);
                             }
                             return true;
                         } else {
-                            for (String m : Messages.get().Time()) {
+                            for (String m : Messages.get().time()) {
                                 m = replace(m, p);
                                 sender.sendMessage(m
                                         .replace("{time_to_start}", String.valueOf(getTime()))
@@ -79,17 +79,19 @@ public class EventCMD implements CommandExecutor {
                             List<String> msg = cfg.getStringList("Events." + getNowEvent() + ".activeInfo");
 
                             for (String m : msg) {
-                                p.sendMessage(replace(m
-                                        .replace("{prefix}", cfg.getString("Events." + getNowEvent() + ".Prefix", "none"))
+                                m = (m
+                                        .replace("{prefix}", getActiveEventPrefix())
                                         .replace("{duration}", String.valueOf(getTimeToEnd()))
                                         .replace("{duration_string}", stringFormat(getTimeToEnd()))
                                         .replace("{active_status}", ActiveStatus())
-                                        , p));
+                                        );
+                                m = replace(m, p);
+                                p.sendMessage(m);
                             }
 
 
                         } else {
-                            for (String msg : Messages.get().Info()) {
+                            for (String msg : Messages.get().info()) {
                                 msg = replace(msg, p);
                                 p.sendMessage(msg);
                             }
@@ -112,6 +114,9 @@ public class EventCMD implements CommandExecutor {
                         if (isEventActive()) {
                             TimeUntilDuration = 0;
                             sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "Ивент " + Assistants.getActiveEventPrefix() + " остановлен."));
+                            stopEvent(Assistants.getActiveEventPrefix());
+
+
                         } else {
                             sender.sendMessage("Нету активных ивентов");
                         }
@@ -218,13 +223,116 @@ public class EventCMD implements CommandExecutor {
                                     p.sendMessage(replace(Messages.get().Disabled(), p));
                                 }
                             } else {
-                                for (String msg : Messages.get().Info()) {
+                                for (String msg : Messages.get().info()) {
                                     msg = replace(msg, p);
                                     p.sendMessage(msg);
                                 }
                             }
                         }
 
+                }
+            } else {
+                String arg = args[0];
+                switch (arg) {
+                    case "start": {
+                        if (!sender.hasPermission("eventdelay.admin")) {
+                            sender.sendMessage(Messages.get().NoPerm());
+                            return true;
+                        }
+                        db.set("OpeningTime", "false");
+                        startRandomEvent();
+                        TimerUntilNextEvent = Config.get().getTimer();
+                        break;
+                    }
+                    case "stop": {
+                        if (!sender.hasPermission("eventdelay.admin")) {
+                            sender.sendMessage(Messages.get().NoPerm());
+                            return true;
+                        }
+                        if (isEventActive()) {
+                            TimeUntilDuration = 0;
+                            sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "Ивент " + Assistants.getActiveEventPrefix() + " остановлен."));
+                            stopEvent(Assistants.getActiveEventPrefix());
+
+
+                        } else {
+                            sender.sendMessage("Нету активных ивентов");
+                        }
+                        break;
+                    }
+                    case "timer": {
+                        if (!sender.hasPermission("eventdelay.admin")) {
+                            sender.sendMessage(Messages.get().NoPerm());
+                            return true;
+                        }
+
+                        if (args.length < 2) {
+
+                            sender.sendMessage("&a[HELP] &f &c/event timer reset");
+                            sender.sendMessage("&a[HELP] &f &c/event timer set <в секундах>");
+
+                            return true;
+                        }
+                        if (args[1].equalsIgnoreCase("set")) {
+                            if (args[2].equalsIgnoreCase("reset")) {
+                                TimerUntilNextEvent = Config.get().getTimer();
+                                sender.sendMessage("Вы успешно сбросили время до начала ивента");
+
+                            } else if (args[1].equalsIgnoreCase("set") && args.length == 3) {
+                                TimerUntilNextEvent = Integer.parseInt(args[2]);
+                                sender.sendMessage("&a[HELP] &fВы успешно поставили время до начала ивента на &a".replace('&', '§') + Integer.parseInt(args[2]));
+
+                            }
+                        }
+                        break;
+                    }
+                    case "next": {
+                        if (!sender.hasPermission("eventdelay.admin")) {
+                            sender.sendMessage(Messages.get().NoPerm());
+                            return true;
+                        }
+                        if (args.length < 2) {
+                            sender.sendMessage("Используйте /event next <название ивента>");
+                            return true;
+                        }
+
+                        if (cfg.contains("Events." + args[1])) {
+                            setNextEvent(args[1]);
+                            sender.sendMessage("Следующий ивент установлен на: " + ChatColor.GREEN + getNextEvent());
+                        } else {
+                            sender.sendMessage("Ивент с названием " + ChatColor.RED + args[1] + ChatColor.WHITE + " не найден.");
+                        }
+                        break;
+                    }
+                    case "reload": {
+                        if (!sender.hasPermission("eventdelay.admin")) {
+                            sender.sendMessage(Messages.get().NoPerm());
+                            return true;
+                        }
+                        sender.sendMessage(Messages.get().Reload());
+                        getINSTANCE().cfgReload();
+                        getINSTANCE().messagesReload();
+                        TimeUntilDuration = Config.get().getTimer();
+
+                        break;
+                    }
+                    case "activate": {
+                        if (!sender.hasPermission("eventdelay.admin")) {
+                            sender.sendMessage(Messages.get().NoPerm());
+                            return true;
+                        }
+                        if (Objects.requireNonNull(cfg.getConfigurationSection("Events")).getKeys(false).contains(getNowEvent())) {
+
+                            if (isEventActive()) {
+                                Activate();
+                                sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "Ивент " + getActiveEventPrefix() + " активирован."));
+                            } else {
+                                sender.sendMessage("Нету активных ивентов");
+                            }
+
+                        }
+                        break;
+                    }
                 }
             }
         }
@@ -233,6 +341,7 @@ public class EventCMD implements CommandExecutor {
 
         private String ActiveStatus () {
 
+            DB.get().load();
             String check = DB.get().getOpeningTime();
 
             assert check != null;

@@ -9,8 +9,5 @@
         <module name="EventDelay" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel>
-      <module name="EventDelay" target="1.8" />
-    </bytecodeTargetLevel>
   </component>
 </project>
