@@ -1,13 +1,22 @@
-package me.jetby.eventDelay.Utils;
+package me.jetby.eventDelay.tools;
 
 
-import me.jetby.eventDelay.Configs.Config;
 import me.jetby.eventDelay.Main;
+import me.jetby.eventDelay.commands.EventCMD;
+import me.jetby.eventDelay.commands.TabCompleter;
+import me.jetby.eventDelay.manager.Timer;
+import org.bstats.bukkit.Metrics;
+import org.bukkit.Bukkit;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLConnection;
+
+import static me.jetby.eventDelay.configurations.Config.CFG;
+import static me.jetby.eventDelay.manager.Timer.startTimer;
+import static me.jetby.eventDelay.manager.Triggers.nextRandomEvent;
+import static org.bukkit.Bukkit.getServer;
 
 public class License {
 
@@ -16,7 +25,7 @@ public class License {
     private Main plugin;
     // This MUST be the same as the REQUEST_KEY defined in config.php
     private String requestKey = "vmLAyzmppLLDgvqMPFyHLSkWdyHYqRImNueC1OLK";
-    private boolean debug = Config.get().getDebug();
+    private boolean debug = CFG().getBoolean("debug", false);
 
     private boolean valid = false;
     private ReturnType returnType;
@@ -82,6 +91,33 @@ public class License {
     }
 
     public boolean isValid() {
+        if (valid) {
+
+            // МЕТРИКА
+            new Metrics(Main.getInstance(), 23730);
+
+
+            if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+                new PlaceholderAPI().register();
+            }
+
+            EventDelayAPI.setTimer(CFG().getInt("Timer", 1800));
+            EventDelayAPI.setFreeze(CFG().getBoolean("Freeze", true));
+            EventDelayAPI.setMinPlayers(CFG().getInt("MinPlayers", 3));
+
+            EventDelayAPI.setPreviousEvent("none");
+            EventDelayAPI.setNowEvent("none");
+            EventDelayAPI.setNextEvent("none");
+
+
+            Main.getInstance().getCommand("event").setExecutor(new EventCMD());
+            Main.getInstance().getCommand("event").setTabCompleter(new TabCompleter());
+
+            Timer.initialize();
+            Timer.startTimer();
+            nextRandomEvent();
+
+        }
         return valid;
     }
 

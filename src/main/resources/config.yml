@@ -1,52 +1,72 @@
-license: "ЛИЦЕНЗИЯ"
+
+license:
+  key: 'ВСТАВЬТЕ_СЮДА_ВАШУ_ЛИЦЕНЗИЮ'
+  url: "http://treexstudio.site"
 
 debug: false
 
-Timer: 1800 # В секундах
+Timer: 1800 # В секундах. Если TimerType: DEFAULT
+TimerType: DEFAULT # DEFAULT/TIMEZONE
+TimeZones:
+  - '10:00;id' # если добавить ";id_ивента" то в это время будет именно данный ивент
+  - '15:00'
+  - '22:00'
 
-# Если true то таймер заморозится если недостаточно игроков
-# Если false то таймер будет продолжать идти ни смотря на онлайн
+# Если true, то таймер заморозится если недостаточно игроков
+# Если false, то таймер будет продолжать идти ни смотря на онлайн
 Freeze: true
 
 MinPlayers: 3 # Минимум игроков для срабатывания
-
 
 Events:
   rareMyst:
     Duration: 300 # В секундах. Время через которое ивент закончится
     Prefix: "&dМистический сундук"
     # Если не будете пользоваться компасом, тогда удалите строки compass и coordinates
+
     compass: true
     coordinates:
-      world: "%placeholder_world%"
+      world: "%placeholder_world%" # замените %placeholder_world% на свой плейсхолдер для получения координат
       x: "%placeholder_x%"
       y: "%placeholder_y%"
       z: "%placeholder_z%"
 
-    OpeningTime: 60 # В секундах. Через какое время ивент будет открыт. Эта функция подходит для мистиков как на FunTime. Если вам это не нужно тогда уберите эту строку
+    ActivationTime: 60 # В секундах. Через какое время ивент будет открыт. Эта функция подходит для мистиков как на FunTime. Если вам это не нужно тогда уберите эту строку
+
     activeInfo: # Отображается в /event info
       - ""
       - "{prefix}"
-      - "Координаты: x y z"
+      - "Координаты: %placeholder_x% %placeholder_y% %placeholder_z%"
       - "Редкость: &5Эпический"
       - "Статус: {active_status}"
       - "До завершения: {duration} секунд"
       - ""
+
     warns:
       time:
         - 300
         - 120
         - 30
-      msg:
-        - ""
-        - "{prefix}"
-        - "Редкость: &5Эпический"
-        - "Ивент начнётся через &6{time_to_start}"
-        - ""
-    start-commands: # Команды на запуск ивента
-      - bair start epic
-    end-commands: # Пример запуска ивента через плагин BAirdrop
-      - say Ивент закончился
+      warnActions:
+        - "[MESSAGE] "
+        - "[MESSAGE] {prefix}"
+        - "[MESSAGE] Редкость: &5Эпический"
+        - "[MESSAGE] Ивент начнётся через &6%eventdelay_time_to_start%"
+        - "[MESSAGE] "
+
+    onStart: # Команды на запуск ивента
+      default:
+        - "[CONSOLE] bair start epic"
+        - "[SEND_WEBHOOK] example"
+      random:
+        random-1:
+          - "[CONSOLE] bair start epic2"
+        random-2:
+          - "[CONSOLE] bair start epic3"
+
+    onActivated: {}
+    onEnd:
+      - "[MESSAGE] Конец ивента {prefix}"
 
 
   goldblock:

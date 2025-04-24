@@ -1,4 +1,4 @@
-package me.jetby.eventDelay.Utils;
+package me.jetby.eventDelay.tools;
 
 public class FormatTimer {
     public static String stringFormat(int Sec) {
@@ -15,12 +15,10 @@ public class FormatTimer {
             formattedTime.append(formatUnit(min, "минута", "минуты", "минут")).append(" ");
         }
 
-        // Всегда добавляем секунды, если они есть
         if (sec > 0) {
             formattedTime.append(formatUnit(sec, "секунда", "секунды", "секунд"));
         }
 
-        // Если ни часы, ни минуты, ни секунды не указаны, добавляем "0 секунд"
         if (hour == 0 && min == 0 && sec == 0) {
             formattedTime.append("0 секунд");
         }

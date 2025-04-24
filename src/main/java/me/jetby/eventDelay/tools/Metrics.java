@@ -1,4 +1,4 @@
-package me.jetby.eventDelay.Utils;
+package me.jetby.eventDelay.tools;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
