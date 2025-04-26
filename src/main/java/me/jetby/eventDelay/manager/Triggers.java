@@ -1,5 +1,8 @@
 package me.jetby.eventDelay.manager;
 
+import lombok.Getter;
+import lombok.Setter;
+import me.jetby.eventDelay.Main;
 import me.jetby.eventDelay.tools.Actions;
 import me.jetby.eventDelay.tools.EventDelayAPI;
 import org.bukkit.Bukkit;
@@ -10,63 +13,71 @@ import java.util.Set;
 
 import static me.jetby.eventDelay.configurations.Config.CFG;
 import static me.jetby.eventDelay.manager.Assistants.getRandomEvent;
-import static me.jetby.eventDelay.manager.Timer.startDuration;
 
 public class Triggers {
-    public static void nextRandomEvent() {
-        if (EventDelayAPI.getNextEvent().equalsIgnoreCase("none")) {
-            EventDelayAPI.setNextEvent(getRandomEvent());
+
+    private final EventDelayAPI eventDelayAPI;
+
+
+
+    public Triggers(EventDelayAPI eventDelayAPI) {
+        this.eventDelayAPI = eventDelayAPI;
+    }
+
+    public void nextRandomEvent() {
+        if (eventDelayAPI.getNextEvent().equalsIgnoreCase("none")) {
+            eventDelayAPI.setNextEvent(getRandomEvent());
         }
     }
-    public static void startRandomEvent() {
-        if (EventDelayAPI.getNowEvent().equalsIgnoreCase("none")) {
-            EventDelayAPI.setNowEvent(EventDelayAPI.getNextEvent());
+    public void startRandomEvent() {
+        if (eventDelayAPI.getNowEvent().equalsIgnoreCase("none")) {
+            eventDelayAPI.setNowEvent(eventDelayAPI.getNextEvent());
         } else {
-            stopEvent(EventDelayAPI.getNowEvent());
-            EventDelayAPI.setNowEvent(EventDelayAPI.getNextEvent());
+            stopEvent(eventDelayAPI.getNowEvent());
+            eventDelayAPI.setNowEvent(eventDelayAPI.getNextEvent());
         }
 
-        EventDelayAPI.setNextEvent(getRandomEvent());
-        triggerEvent(EventDelayAPI.getNowEvent());
+        eventDelayAPI.setNextEvent(getRandomEvent());
+        triggerEvent(eventDelayAPI.getNowEvent());
     }
 
 
 
-    public static void stopEvent(String eventName) {
-        if (EventDelayAPI.getNowEvent().equalsIgnoreCase("none")) {
+    public void stopEvent(String eventName) {
+        if (eventDelayAPI.getNowEvent().equalsIgnoreCase("none")) {
             return;
         }
 
-        EventDelayAPI.setTimeToEnd(CFG().getInt("Events." + eventName + ".Duration"));
+        eventDelayAPI.setOpeningTimer(CFG().getInt("Events." + eventName + ".Duration"));
         List<String> commands = CFG().getStringList("Events." + eventName + ".onEnd");
 
         for (Player player : Bukkit.getOnlinePlayers()) {
             Actions.execute(player, commands);
         }
-        EventDelayAPI.setPreviousEvent(EventDelayAPI.getNowEvent());
-        EventDelayAPI.setNowEvent("none");
-        EventDelayAPI.setNextEvent(getRandomEvent());
+        eventDelayAPI.setPreviousEvent(eventDelayAPI.getNowEvent());
+        eventDelayAPI.setNowEvent("none");
+        eventDelayAPI.setNextEvent(getRandomEvent());
 
     }
 
-    public static void triggerNextEvent() {
-        if (EventDelayAPI.getNextEvent().equalsIgnoreCase("none")) {
-            EventDelayAPI.setNextEvent(getRandomEvent());
+    public void triggerNextEvent() {
+        if (eventDelayAPI.getNextEvent().equalsIgnoreCase("none")) {
+            eventDelayAPI.setNextEvent(getRandomEvent());
         }
 
-        EventDelayAPI.setNowEvent(EventDelayAPI.getNextEvent());
-        EventDelayAPI.setNextEvent("none");
-        EventDelayAPI.setActivationStatus("false");
+        eventDelayAPI.setNowEvent(eventDelayAPI.getNextEvent());
+        eventDelayAPI.setNextEvent("none");
+        eventDelayAPI.setActivationStatus("false");
 
-        triggerEvent(EventDelayAPI.getNowEvent());
+        triggerEvent(eventDelayAPI.getNowEvent());
 
         // Only reset timer if in DEFAULT mode
         if (CFG().getString("TimerType", "DEFAULT").equalsIgnoreCase("DEFAULT")) {
-            EventDelayAPI.setTimerUntilNextEvent(CFG().getInt("Timer", 1800));
+            eventDelayAPI.setTimerUntilNextEvent(CFG().getInt("Timer", 1800));
         }
     }
-    public static void triggerEvent(String eventName) {
-        EventDelayAPI.setTimeToEnd(CFG().getInt("Events." + eventName + ".Duration"));
+    public void triggerEvent(String eventName) {
+        eventDelayAPI.setOpeningTimer(CFG().getInt("Events." + eventName + ".Duration"));
 
         List<String> defaultCommands = CFG().getStringList("Events." + eventName + ".onStart.default");
         for (Player player : Bukkit.getOnlinePlayers()) {
@@ -89,7 +100,8 @@ public class Triggers {
             }
         }
 
-        startDuration(EventDelayAPI.getNowEvent(), EventDelayAPI.getTimeToEnd());
+
+        Main.INSTANCE.getTimer().startDuration(eventDelayAPI.getNowEvent(), eventDelayAPI.getOpeningTimer());
     }
 
 }

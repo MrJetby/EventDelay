@@ -24,6 +24,7 @@ me\jetby\eventDelay\Commands\TabCompleter.class
 me\jetby\eventDelay\Manager\Timer$3.class
 me\jetby\eventDelay\tools\Metrics.class
 me\jetby\eventDelay\tools\Metrics$AdvancedBarChart.class
+me\jetby\eventDelay\Commands\LicenseCMD.class
 me\jetby\eventDelay\Manager\Triggers.class
 me\jetby\eventDelay\configurations\Messages.class
 me\jetby\eventDelay\tools\Webhook.class

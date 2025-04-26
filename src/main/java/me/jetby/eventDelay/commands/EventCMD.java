@@ -6,6 +6,7 @@ import me.jetby.eventDelay.configurations.Messages;
 import me.jetby.eventDelay.configurations.WebhookConfig;
 import me.jetby.eventDelay.manager.Assistants;
 import me.jetby.eventDelay.manager.Timer;
+import me.jetby.eventDelay.manager.Triggers;
 import me.jetby.eventDelay.tools.EventDelayAPI;
 import org.bukkit.*;
 import org.bukkit.command.Command;
@@ -19,23 +20,28 @@ import java.util.List;
 import java.util.Objects;
 
 import static me.jetby.eventDelay.configurations.Config.CFG;
-import static me.jetby.eventDelay.Main.*;
 import static me.jetby.eventDelay.configurations.Messages.MSG;
 import static me.jetby.eventDelay.manager.Assistants.*;
-import static me.jetby.eventDelay.manager.Timer.Activate;
-import static me.jetby.eventDelay.manager.Triggers.*;
-import static me.jetby.eventDelay.tools.Actions.teleportRandom;
+import static me.jetby.eventDelay.tools.Actions.teleportButton;
 import static me.jetby.eventDelay.tools.Color.hex;
 import static me.jetby.eventDelay.tools.FormatTimer.stringFormat;
 
 public class EventCMD implements CommandExecutor {
+    private final EventDelayAPI eventDelayAPI;
+    private final Timer timer;
+    private final Triggers triggers;
+
+    public EventCMD(EventDelayAPI eventDelayAPI, Timer timer, Triggers triggers){
+        this.eventDelayAPI = eventDelayAPI;
+        this.timer = timer;
+        this.triggers = triggers;
+    }
+
     @Override
     public boolean onCommand(@NotNull CommandSender sender, Command command, @NotNull String label, String[] args) {
         if (command.getName().equalsIgnoreCase("event")) {
 
-            if (sender instanceof Player) {
-
-                Player p = (Player) sender;
+            if (sender instanceof Player p) {
 
                 if (args.length == 0) {
                     for (String msg : MSG().getStringList("messages.usage")) {
@@ -59,8 +65,8 @@ public class EventCMD implements CommandExecutor {
                         if (isEventActive()) {
                             for (String m : MSG().getStringList("delay.active")) {
                                 m = m
-                                        .replace("{time_to_start}", String.valueOf(EventDelayAPI.getTimerUntilNextEvent()))
-                                        .replace("{time_to_start_string}", stringFormat(EventDelayAPI.getTimerUntilNextEvent()))
+                                        .replace("{time_to_start}", String.valueOf(eventDelayAPI.getTimerUntilNextEvent()))
+                                        .replace("{time_to_start_string}", stringFormat(eventDelayAPI.getTimerUntilNextEvent()))
                                         .replace("{prefix}", getNowEventPrefix())
                                 ;
                                 m = hex(m, p);
@@ -71,8 +77,8 @@ public class EventCMD implements CommandExecutor {
                             for (String m : MSG().getStringList("delay.time")) {
                                 m = hex(m, p);
                                 sender.sendMessage(m
-                                        .replace("{time_to_start}", String.valueOf(EventDelayAPI.getTimerUntilNextEvent()))
-                                        .replace("{time_to_start_string}", stringFormat(EventDelayAPI.getTimerUntilNextEvent()))
+                                        .replace("{time_to_start}", String.valueOf(eventDelayAPI.getTimerUntilNextEvent()))
+                                        .replace("{time_to_start_string}", stringFormat(eventDelayAPI.getTimerUntilNextEvent()))
                                 );
                             }
 
@@ -81,13 +87,13 @@ public class EventCMD implements CommandExecutor {
                     } case "info": {
                         if (isEventActive()) {
 
-                            List<String> msg = CFG().getStringList("Events." + EventDelayAPI.getNowEvent() + ".activeInfo");
+                            List<String> msg = CFG().getStringList("Events." + eventDelayAPI.getNowEvent() + ".activeInfo");
 
                             for (String m : msg) {
                                 m = (m
                                         .replace("{prefix}", getNowEventPrefix())
-                                        .replace("{duration}", String.valueOf(EventDelayAPI.getDuration()))
-                                        .replace("{duration_string}", stringFormat(EventDelayAPI.getDuration()))
+                                        .replace("{duration}", String.valueOf(eventDelayAPI.getDuration()))
+                                        .replace("{duration_string}", stringFormat(eventDelayAPI.getDuration()))
                                         .replace("{active_status}", ActiveStatus())
                                         );
                                 m = hex(m, p);
@@ -107,26 +113,16 @@ public class EventCMD implements CommandExecutor {
                             p.sendMessage(hex(MSG().getString("messages.noPerm")));
                             return true;
                         }
-                        EventDelayAPI.setActivationStatus("false");
-                        startRandomEvent();
-                        EventDelayAPI.setTimerUntilNextEvent(CFG().getInt("Timer", 1800));
+                        eventDelayAPI.setActivationStatus("false");
+                        triggers.startRandomEvent();
+                        eventDelayAPI.setTimerUntilNextEvent(CFG().getInt("Timer", 1800));
                         break;
-                    } case "127hajSkjnfa,asd12sa": {
-                        if (EventDelayAPI.getNowEvent().equalsIgnoreCase("none")) {
+                    } case "teleport": {
+                        if (eventDelayAPI.getNowEvent().equalsIgnoreCase("none")) {
                             break;
                         }
-                        World world = Bukkit.getWorld(CFG().getString("Events." + EventDelayAPI.getNowEvent() + ".coordinates.world", "world"));
 
-                        String xString = hex(CFG().getString("Events." + EventDelayAPI.getNowEvent() + ".coordinates.x", "0"), p);
-                        String yString = hex(CFG().getString("Events." + EventDelayAPI.getNowEvent() + ".coordinates.y", "0"), p);
-                        String zString = hex(CFG().getString("Events." + EventDelayAPI.getNowEvent() + ".coordinates.z", "0"), p);
-
-                        int x = Integer.parseInt(xString);
-                        int y = Integer.parseInt(yString);
-                        int z = Integer.parseInt(zString);
-
-                        Location location = new Location(world, x, y, z);
-                        teleportRandom(p, location, Integer.parseInt(args[1]), Integer.parseInt(args[2]));
+                        teleportButton(p, eventDelayAPI);
                         break;
                     }
                     case "stop": {
@@ -135,9 +131,9 @@ public class EventCMD implements CommandExecutor {
                             return true;
                         }
                         if (isEventActive()) {
-                            EventDelayAPI.setTimeToEnd(0);
+                            eventDelayAPI.setOpeningTimer(0);
                             sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "Ивент " + Assistants.getNowEventPrefix() + " остановлен."));
-                            stopEvent(EventDelayAPI.getNowEvent());
+                            triggers.stopEvent(eventDelayAPI.getNowEvent());
 
 
                         } else {
@@ -159,11 +155,11 @@ public class EventCMD implements CommandExecutor {
                         }
                         if (args[1].equalsIgnoreCase("set")) {
                             if (args[2].equalsIgnoreCase("reset")) {
-                                EventDelayAPI.setTimerUntilNextEvent(CFG().getInt("Timer", 1800));
+                                eventDelayAPI.setTimerUntilNextEvent(CFG().getInt("Timer", 1800));
                                 p.sendMessage("Вы успешно сбросили время до начала ивента");
 
                             } else if (args[1].equalsIgnoreCase("set") && args.length == 3) {
-                                EventDelayAPI.setTimerUntilNextEvent(Integer.parseInt(args[2]));
+                                eventDelayAPI.setTimerUntilNextEvent(Integer.parseInt(args[2]));
                                 sender.sendMessage("&a[HELP] &fВы успешно поставили время до начала ивента на &a".replace('&', '§') + Integer.parseInt(args[2]));
 
                             }
@@ -180,8 +176,8 @@ public class EventCMD implements CommandExecutor {
                         }
 
                         if (CFG().contains("Events." + args[1])) {
-                            EventDelayAPI.setNextEvent(args[1]);
-                            sender.sendMessage("Следующий ивент установлен на: " + ChatColor.GREEN + EventDelayAPI.getNextEvent());
+                            eventDelayAPI.setNextEvent(args[1]);
+                            sender.sendMessage("Следующий ивент установлен на: " + ChatColor.GREEN + eventDelayAPI.getNextEvent());
                         } else {
                             sender.sendMessage("Ивент с названием " + ChatColor.RED + args[1] + ChatColor.WHITE + " не найден.");
                         }
@@ -194,27 +190,27 @@ public class EventCMD implements CommandExecutor {
                         p.sendMessage(hex(MSG().getString("messages.reload"), p));
 
                         Config config = new Config();
-                        config.reloadCfg(Main.getInstance());
+                        config.reloadCfg(Main.INSTANCE);
 
                         Messages messages = new Messages();
-                        messages.reloadCfg(Main.getInstance());
+                        messages.reloadCfg(Main.INSTANCE);
 
                         WebhookConfig webhookConfig = new WebhookConfig();
-                        webhookConfig.reloadCfg(Main.getInstance());
+                        webhookConfig.reloadCfg(Main.INSTANCE);
 
-                        EventDelayAPI.setTimeToEnd(CFG().getInt("Timer", 1800));
+                        eventDelayAPI.setOpeningTimer(CFG().getInt("Timer", 1800));
 
-                        EventDelayAPI.setTimer(CFG().getInt("Timer", 1800));
-                        EventDelayAPI.setFreeze(CFG().getBoolean("Freeze", true));
-                        EventDelayAPI.setMinPlayers(CFG().getInt("MinPlayers", 3));
+                        eventDelayAPI.setTimer(CFG().getInt("Timer", 1800));
+                        eventDelayAPI.setFreeze(CFG().getBoolean("Freeze", true));
+                        eventDelayAPI.setMinPlayers(CFG().getInt("MinPlayers", 3));
 
-                        EventDelayAPI.setPreviousEvent("none");
-                        EventDelayAPI.setNowEvent("none");
-                        EventDelayAPI.setNextEvent("none");
+                        eventDelayAPI.setPreviousEvent("none");
+                        eventDelayAPI.setNowEvent("none");
+                        eventDelayAPI.setNextEvent("none");
 
-                        Timer.initialize();
-                        Timer.startTimer();
-                        nextRandomEvent();
+                        timer.initialize();
+                        timer.startTimer();
+                        triggers.nextRandomEvent();
 
                         break;
                     } case "activate": {
@@ -222,10 +218,10 @@ public class EventCMD implements CommandExecutor {
                             p.sendMessage(hex(MSG().getString("messages.noPerm")));
                             return true;
                         }
-                        if (Objects.requireNonNull(CFG().getConfigurationSection("Events")).getKeys(false).contains(EventDelayAPI.getNowEvent())) {
+                        if (Objects.requireNonNull(CFG().getConfigurationSection("Events")).getKeys(false).contains(eventDelayAPI.getNowEvent())) {
 
                             if (isEventActive()) {
-                                Activate();
+                                timer.Activate();
                                 sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "Ивент " + getNowEventPrefix() + " активирован."));
                             } else {
                                 sender.sendMessage("Нету активных ивентов");
@@ -236,15 +232,14 @@ public class EventCMD implements CommandExecutor {
                     } case "compass": {
 
                             if (isEventActive()) {
-                                if (CFG().getBoolean("Events." + EventDelayAPI.getNowEvent() + ".compass") && CFG().getString("Events." + EventDelayAPI.getNowEvent() + ".compass")!=null) {
+                                if (CFG().getBoolean("Events." + eventDelayAPI.getNowEvent() + ".compass") && CFG().getString("Events." + eventDelayAPI.getNowEvent() + ".compass")!=null) {
 
-                                    World world = Bukkit.getWorld(CFG().getString("Events." + EventDelayAPI.getNowEvent() + ".coordinates.world", "world"));
-                                    // Замена плейсхолдеров до парсинга
-                                    String xString = hex(CFG().getString("Events." + EventDelayAPI.getNowEvent() + ".coordinates.x", "0"), p);
-                                    String yString = hex(CFG().getString("Events." + EventDelayAPI.getNowEvent() + ".coordinates.y", "0"), p);
-                                    String zString = hex(CFG().getString("Events." + EventDelayAPI.getNowEvent() + ".coordinates.z", "0"), p);
+                                    World world = Bukkit.getWorld(CFG().getString("Events." + eventDelayAPI.getNowEvent() + ".coordinates.world", "world"));
 
-                                    // Парсинг в целые числа после замены плейсхолдеров
+                                    String xString = hex(CFG().getString("Events." + eventDelayAPI.getNowEvent() + ".coordinates.x", "0"), p);
+                                    String yString = hex(CFG().getString("Events." + eventDelayAPI.getNowEvent() + ".coordinates.y", "0"), p);
+                                    String zString = hex(CFG().getString("Events." + eventDelayAPI.getNowEvent() + ".coordinates.z", "0"), p);
+
                                     int x = Integer.parseInt(xString);
                                     int y = Integer.parseInt(yString);
                                     int z = Integer.parseInt(zString);
@@ -282,9 +277,9 @@ public class EventCMD implements CommandExecutor {
                             sender.sendMessage(MSG().getString("messages.noPerm"));
                             return true;
                         }
-                        EventDelayAPI.setActivationStatus("false");
-                        startRandomEvent();
-                        EventDelayAPI.setTimerUntilNextEvent(CFG().getInt("Timer", 1800));
+                        eventDelayAPI.setActivationStatus("false");
+                        triggers.startRandomEvent();
+                        eventDelayAPI.setTimerUntilNextEvent(CFG().getInt("Timer", 1800));
                         break;
                     }
                     case "stop": {
@@ -293,9 +288,9 @@ public class EventCMD implements CommandExecutor {
                             return true;
                         }
                         if (isEventActive()) {
-                            EventDelayAPI.setTimeToEnd(0);
+                            eventDelayAPI.setOpeningTimer(0);
                             sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "Ивент " + Assistants.getNowEventPrefix() + " остановлен."));
-                            stopEvent(EventDelayAPI.getNowEvent());
+                            triggers.stopEvent(eventDelayAPI.getNowEvent());
 
 
                         } else {
@@ -318,11 +313,11 @@ public class EventCMD implements CommandExecutor {
                         }
                         if (args[1].equalsIgnoreCase("set")) {
                             if (args[2].equalsIgnoreCase("reset")) {
-                                EventDelayAPI.setTimerUntilNextEvent(CFG().getInt("Timer", 1800));
+                                eventDelayAPI.setTimerUntilNextEvent(CFG().getInt("Timer", 1800));
                                 sender.sendMessage("Вы успешно сбросили время до начала ивента");
 
                             } else if (args[1].equalsIgnoreCase("set") && args.length == 3) {
-                                EventDelayAPI.setTimerUntilNextEvent(Integer.parseInt(args[2]));
+                                eventDelayAPI.setTimerUntilNextEvent(Integer.parseInt(args[2]));
                                 sender.sendMessage("&a[HELP] &fВы успешно поставили время до начала ивента на &a".replace('&', '§') + Integer.parseInt(args[2]));
 
                             }
@@ -340,8 +335,8 @@ public class EventCMD implements CommandExecutor {
                         }
 
                         if (CFG().contains("Events." + args[1])) {
-                            EventDelayAPI.setNextEvent(args[1]);
-                            sender.sendMessage("Следующий ивент установлен на: " + ChatColor.GREEN + EventDelayAPI.getNextEvent());
+                            eventDelayAPI.setNextEvent(args[1]);
+                            sender.sendMessage("Следующий ивент установлен на: " + ChatColor.GREEN + eventDelayAPI.getNextEvent());
                         } else {
                             sender.sendMessage("Ивент с названием " + ChatColor.RED + args[1] + ChatColor.WHITE + " не найден.");
                         }
@@ -354,27 +349,27 @@ public class EventCMD implements CommandExecutor {
                         }
                         sender.sendMessage(MSG().getString("messages.reload"));
                         Config config = new Config();
-                        config.reloadCfg(Main.getInstance());
+                        config.reloadCfg(Main.INSTANCE);
 
                         Messages messages = new Messages();
-                        messages.reloadCfg(Main.getInstance());
+                        messages.reloadCfg(Main.INSTANCE);
 
                         WebhookConfig webhookConfig = new WebhookConfig();
-                        webhookConfig.reloadCfg(Main.getInstance());
+                        webhookConfig.reloadCfg(Main.INSTANCE);
 
-                        EventDelayAPI.setTimeToEnd(CFG().getInt("Timer", 1800));
+                        eventDelayAPI.setOpeningTimer(CFG().getInt("Timer", 1800));
 
-                        EventDelayAPI.setTimer(CFG().getInt("Timer", 1800));
-                        EventDelayAPI.setFreeze(CFG().getBoolean("Freeze", true));
-                        EventDelayAPI.setMinPlayers(CFG().getInt("MinPlayers", 3));
+                        eventDelayAPI.setTimer(CFG().getInt("Timer", 1800));
+                        eventDelayAPI.setFreeze(CFG().getBoolean("Freeze", true));
+                        eventDelayAPI.setMinPlayers(CFG().getInt("MinPlayers", 3));
 
-                        EventDelayAPI.setPreviousEvent("none");
-                        EventDelayAPI.setNowEvent("none");
-                        EventDelayAPI.setNextEvent("none");
+                        eventDelayAPI.setPreviousEvent("none");
+                        eventDelayAPI.setNowEvent("none");
+                        eventDelayAPI.setNextEvent("none");
 
-                        Timer.initialize();
-                        Timer.startTimer();
-                        nextRandomEvent();
+                        timer.initialize();
+                        timer.startTimer();
+                        triggers.nextRandomEvent();
 
                         break;
                     }
@@ -383,10 +378,10 @@ public class EventCMD implements CommandExecutor {
                             sender.sendMessage(MSG().getString("messages.noPerm"));
                             return true;
                         }
-                        if (Objects.requireNonNull(CFG().getConfigurationSection("Events")).getKeys(false).contains(EventDelayAPI.getNowEvent())) {
+                        if (Objects.requireNonNull(CFG().getConfigurationSection("Events")).getKeys(false).contains(eventDelayAPI.getNowEvent())) {
 
                             if (isEventActive()) {
-                                Activate();
+                                timer.Activate();
                                 sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "Ивент " + getNowEventPrefix() + " активирован."));
                             } else {
                                 sender.sendMessage("Нету активных ивентов");
@@ -401,19 +396,19 @@ public class EventCMD implements CommandExecutor {
         return false;
     }
 
-        public static String ActiveStatus () {
+    public String ActiveStatus () {
 
-            String check = EventDelayAPI.getActivationStatus();
+        String check = eventDelayAPI.getActivationStatus();
 
-            assert check != null;
-            if (check.equals("true")) {
-                return MSG().getString("OpeningTime.start").replace("{time_to_open}", String.valueOf(EventDelayAPI.getTimeToOpen()));
-            }
-
-            if (check.equalsIgnoreCase("opened")) {
-                return MSG().getString("OpeningTime.end");
-            }
-
-            return MSG().getString("OpeningTime.none");
+        assert check != null;
+        if (check.equals("true")) {
+            return MSG().getString("OpeningTime.start").replace("{time_to_open}", String.valueOf(eventDelayAPI.getOpeningTimer()));
         }
+
+        if (check.equalsIgnoreCase("opened")) {
+            return MSG().getString("OpeningTime.end");
+        }
+
+        return MSG().getString("OpeningTime.none");
+    }
 }

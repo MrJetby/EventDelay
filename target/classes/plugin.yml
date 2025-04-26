@@ -1,10 +1,12 @@
 name: EventDelay
-version: '2.6'
+version: '${project.version}'
 main: me.jetby.eventDelay.Main
 api-version: '1.13'
 prefix: EventDelay
 authors: [ TreexStudio ]
 description: Удобный менеджер ивентов
+softdepend:
+  - PlaceholderAPI
 website: https://dsc.gg/treexstudio
 load: POSTWORLD
 commands:

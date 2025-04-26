@@ -7,6 +7,7 @@ debug: false
 
 Timer: 1800 # В секундах. Если TimerType: DEFAULT
 TimerType: DEFAULT # DEFAULT/TIMEZONE
+TimeZone: GMT+3
 TimeZones:
   - '10:00;id' # если добавить ";id_ивента" то в это время будет именно данный ивент
   - '15:00'
@@ -67,17 +68,3 @@ Events:
     onActivated: {}
     onEnd:
       - "[MESSAGE] Конец ивента {prefix}"
-
-
-  goldblock:
-    Duration: 300
-    Prefix: "&eЗолотой блок"
-    activeInfo:
-      - ""
-      - "{prefix}"
-      - "Координаты: x y z"
-      - "До завершения: {duration} секунд"
-      - ""
-    start-commands:
-      - goldblock start
-    end-commands: []

@@ -1,12 +1,8 @@
 package me.jetby.eventDelay.tools;
 
 
+import lombok.Getter;
 import me.jetby.eventDelay.Main;
-import me.jetby.eventDelay.commands.EventCMD;
-import me.jetby.eventDelay.commands.TabCompleter;
-import me.jetby.eventDelay.manager.Timer;
-import org.bstats.bukkit.Metrics;
-import org.bukkit.Bukkit;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -14,24 +10,26 @@ import java.net.URL;
 import java.net.URLConnection;
 
 import static me.jetby.eventDelay.configurations.Config.CFG;
-import static me.jetby.eventDelay.manager.Timer.startTimer;
-import static me.jetby.eventDelay.manager.Triggers.nextRandomEvent;
-import static org.bukkit.Bukkit.getServer;
 
 public class License {
 
-    private String license;
-    private String server;
-    private Main plugin;
+    @Getter
+    private final String license;
+    private final String server;
+    private final Main plugin;
     // This MUST be the same as the REQUEST_KEY defined in config.php
-    private String requestKey = "vmLAyzmppLLDgvqMPFyHLSkWdyHYqRImNueC1OLK";
+    private final String requestKey = "vmLAyzmppLLDgvqMPFyHLSkWdyHYqRImNueC1OLK";
     private boolean debug = CFG().getBoolean("debug", false);
 
     private boolean valid = false;
     private ReturnType returnType;
+    @Getter
     private String generatedBy;
+    @Getter
     private String licensedTo;
+    @Getter
     private String generatedIn;
+
 
 
     public License(String license, String server, Main plugin) {
@@ -48,7 +46,7 @@ public class License {
         try {
             URL url = new URL(server + "/request.php");
             URLConnection connection = url.openConnection();
-            if (debug) System.out.println("[DEBUG] Connecting to request server: " + server + "/request.php");
+            if (debug) System.out.println("[DEBUG] Попытка подключится к сайту: " + server);
             connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.4; en-US; rv:1.9.2.2) Gecko/20100316 Firefox/3.6.2");
             
             connection.setRequestProperty("License-Key", license);
@@ -65,11 +63,11 @@ public class License {
                 builder.append(line);
             }
             String response = builder.toString();
-            if (debug) System.out.println("[DEBUG] Converted");
+            if (debug) System.out.println("[DEBUG] Конвертировано");
 
             String[] responseSplited = response.split(";");
             if (responseSplited[0].equals("VALID")) {
-                if (debug) System.out.println("[DEBUG] VALID LICENSE");
+                if (debug) System.out.println("[DEBUG] ЛИЦЕНЗИЯ ДЕЙСТВИТЕЛЬНА");
                 valid = true;
                 returnType = ReturnType.valueOf(responseSplited[0]);
 
@@ -77,7 +75,7 @@ public class License {
                 generatedIn = responseSplited[3];
                 licensedTo = responseSplited[1];
             } else {
-                if (debug) System.out.println("[DEBUG] FAILED VALIDATION");
+                if (debug) System.out.println("[DEBUG] ЛИЦЕНЗИЯ НЕ ДЕЙСТВИТЕЛЬНА");
                 valid = false;
                 returnType = ReturnType.valueOf(responseSplited[0]);
 
@@ -93,29 +91,7 @@ public class License {
     public boolean isValid() {
         if (valid) {
 
-            // МЕТРИКА
-            new Metrics(Main.getInstance(), 23730);
 
-
-            if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
-                new PlaceholderAPI().register();
-            }
-
-            EventDelayAPI.setTimer(CFG().getInt("Timer", 1800));
-            EventDelayAPI.setFreeze(CFG().getBoolean("Freeze", true));
-            EventDelayAPI.setMinPlayers(CFG().getInt("MinPlayers", 3));
-
-            EventDelayAPI.setPreviousEvent("none");
-            EventDelayAPI.setNowEvent("none");
-            EventDelayAPI.setNextEvent("none");
-
-
-            Main.getInstance().getCommand("event").setExecutor(new EventCMD());
-            Main.getInstance().getCommand("event").setTabCompleter(new TabCompleter());
-
-            Timer.initialize();
-            Timer.startTimer();
-            nextRandomEvent();
 
         }
         return valid;
@@ -123,22 +99,6 @@ public class License {
 
     public ReturnType getReturn() {
         return returnType;
-    }
-
-    public String getLicensedTo() {
-        return licensedTo;
-    }
-
-    public String getLicense() {
-        return license;
-    }
-
-    public String getGeneratedBy() {
-        return generatedBy;
-    }
-
-    public String getGeneratedIn() {
-        return generatedIn;
     }
 
     public enum ReturnType {
