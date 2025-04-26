@@ -1,8 +1,8 @@
 package me.jetby.eventDelay.manager;
 
 
-import me.jetby.eventDelay.Main;
 import me.jetby.eventDelay.tools.EventDelayAPI;
+import org.bukkit.configuration.ConfigurationSection;
 
 import java.util.HashMap;
 import java.util.List;
@@ -10,12 +10,12 @@ import java.util.Map;
 import java.util.Random;
 
 import static me.jetby.eventDelay.configurations.Config.CFG;
+import static me.jetby.eventDelay.configurations.Messages.MSG;
 
 public class Assistants {
 
-
-
-
+    // Делаем это единожды для оптимизации
+    private static final Random random = new Random();
 
     public static String getRandomEvent() {
         List<String> events = CFG().getConfigurationSection("Events").getKeys(false).stream().toList();
@@ -28,10 +28,7 @@ public class Assistants {
             totalWeight += chance;
         }
 
-
-        int randomValue = new Random().nextInt(totalWeight) + 1;
-
-
+        int randomValue = random.nextInt(totalWeight) + 1;
 
         int currentWeight = 0;
         for (Map.Entry<String, Integer> entry : eventChances.entrySet()) {
@@ -41,40 +38,52 @@ public class Assistants {
             }
         }
 
-        return events.get(new Random().nextInt(events.size()));
+        return events.get(random.nextInt(events.size()));
     }
 
 
-    public static boolean isEventActive() {
-        return !Main.INSTANCE.getEventDelayAPI().getNowEvent().equalsIgnoreCase("none");
+    public static boolean isEventActive(EventDelayAPI eventDelayAPI) {
+        return !eventDelayAPI.getNowEvent().equalsIgnoreCase("none");
     }
 
-    public static String getPreviousEventPrefix() {
-        if (!Main.INSTANCE.getEventDelayAPI().getPreviousEvent().equalsIgnoreCase("none")) {
-            return CFG().getString("Events." + Main.INSTANCE.getEventDelayAPI().getPreviousEvent() + ".Prefix");
-        }
-        return "none";
-    }
-    public static String getNowEventPrefix() {
-        if (!Main.INSTANCE.getEventDelayAPI().getNowEvent().equalsIgnoreCase("none")) {
-            return CFG().getString("Events." + Main.INSTANCE.getEventDelayAPI().getNowEvent() + ".Prefix");
-        }
-        return "none";
-    }
-    public static String getNextEventPrefix() {
-        if (!Main.INSTANCE.getEventDelayAPI().getNextEvent().equalsIgnoreCase("none")) {
-            return CFG().getString("Events." + Main.INSTANCE.getEventDelayAPI().getNextEvent() + ".Prefix");
+    public static String getPreviousEventPrefix(EventDelayAPI eventDelayAPI) {
+        if (!eventDelayAPI.getPreviousEvent().equalsIgnoreCase("none")) {
+            return CFG().getString("Events." + eventDelayAPI.getPreviousEvent() + ".Prefix");
         }
         return "none";
     }
 
+    public static String getNowEventPrefix(EventDelayAPI eventDelayAPI) {
+        if (!eventDelayAPI.getNowEvent().equalsIgnoreCase("none")) {
+            return CFG().getString("Events." + eventDelayAPI.getNowEvent() + ".Prefix");
+        }
+        return "none";
+    }
 
-    public static boolean isCompass() {
-        if (!Main.INSTANCE.getEventDelayAPI().getNowEvent().equalsIgnoreCase("none")) {
-            return CFG().getBoolean("Events." + Main.INSTANCE.getEventDelayAPI().getNowEvent() + ".compass", false);
+    public static String getNextEventPrefix(EventDelayAPI eventDelayAPI) {
+        if (!eventDelayAPI.getNextEvent().equalsIgnoreCase("none")) {
+            return CFG().getString("Events." + eventDelayAPI.getNextEvent() + ".Prefix");
+        }
+        return "none";
+    }
+
+
+    public static boolean isCompass(EventDelayAPI eventDelayAPI) {
+        if (!eventDelayAPI.getNowEvent().equalsIgnoreCase("none")) {
+            return CFG().getBoolean("Events." + eventDelayAPI.getNowEvent() + ".compass", false);
         }
         return false;
     }
 
-
+    public static String activeStatus(EventDelayAPI eventDelayAPI) {
+        String check = eventDelayAPI.getActivationStatus();
+        ConfigurationSection openingTime = MSG().getConfigurationSection("OpeningTime");
+        if (check.equals("true")) {
+            return openingTime.getString("start").replace("{time_to_open}", Integer.toString(eventDelayAPI.getOpeningTimer()));
+        }
+        if (check.equalsIgnoreCase("opened")) {
+            return openingTime.getString("end");
+        }
+        return openingTime.getString("none");
+    }
 }

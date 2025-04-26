@@ -15,20 +15,21 @@ import java.util.List;
 import java.util.Map;
 
 import static me.jetby.eventDelay.configurations.Config.CFG;
-import static me.jetby.eventDelay.Main.*;
-import static me.jetby.eventDelay.manager.Assistants.*;
+import static me.jetby.eventDelay.manager.Assistants.getNextEventPrefix;
 
 public class Timer {
 
+    private final Main plugin;
     private final EventDelayAPI eventDelayAPI;
     private final Triggers triggers;
 
-    public Timer(EventDelayAPI eventDelayAPI, Triggers triggers){
-        this.eventDelayAPI = eventDelayAPI;
-        this.triggers = triggers;
+    public Timer(Main plugin) {
+        this.plugin = plugin;
+        this.eventDelayAPI = plugin.getEventDelayAPI();
+        this.triggers = plugin.getTriggers();
     }
 
-    private static Map<String, String> timezoneEvents = new HashMap<>();
+    private static final Map<String, String> timezoneEvents = new HashMap<>();
     private static final DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
     private static ZoneId zoneId;
     private static String lastTriggeredTime = "";
@@ -66,19 +67,18 @@ public class Timer {
                 if (eventDelayAPI.getTimerUntilNextEvent() > 0) {
                     if (eventDelayAPI.isFreeze()) {
                         if (Bukkit.getOnlinePlayers().size() >= eventDelayAPI.getMinPlayers()) {
-                            eventDelayAPI.setTimerUntilNextEvent(eventDelayAPI.getTimerUntilNextEvent()-1);
+                            eventDelayAPI.setTimerUntilNextEvent(eventDelayAPI.getTimerUntilNextEvent() - 1);
                         }
                     } else {
-                        eventDelayAPI.setTimerUntilNextEvent(eventDelayAPI.getTimerUntilNextEvent()-1);
+                        eventDelayAPI.setTimerUntilNextEvent(eventDelayAPI.getTimerUntilNextEvent() - 1);
                     }
-
                     checkWarnings();
                 } else {
                     triggers.triggerNextEvent();
                 }
             }
         };
-        task.runTaskTimerAsynchronously(INSTANCE, 0, 20);
+        task.runTaskTimerAsynchronously(plugin, 0, 20);
     }
 
     private void checkWarnings() {
@@ -87,17 +87,18 @@ public class Timer {
             List<String> warnActions = CFG().getStringList("Events." + eventDelayAPI.getNextEvent() + ".warns.warnActions");
 
             warnActions.replaceAll(s -> s
-                    .replace("{prefix}", getNextEventPrefix())
+                    .replace("{prefix}", getNextEventPrefix(eventDelayAPI))
                     .replace("{time_to_start}", String.valueOf(eventDelayAPI.getTimerUntilNextEvent()))
             );
 
             if (warnTimes.contains(eventDelayAPI.getTimerUntilNextEvent())) {
                 for (Player player : Bukkit.getOnlinePlayers()) {
-                    Actions.execute(player, warnActions);
+                    Actions.execute(plugin, player, warnActions);
                 }
             }
         }
     }
+
     private void startTimezoneTimer() {
         BukkitRunnable task = new BukkitRunnable() {
             @Override
@@ -121,7 +122,7 @@ public class Timer {
                 }
             }
         };
-        task.runTaskTimerAsynchronously(INSTANCE, 0, 20);
+        task.runTaskTimerAsynchronously(plugin, 0, 20);
     }
 
     public void startDuration(String eventName, int duration) {
@@ -130,24 +131,23 @@ public class Timer {
             @Override
             public void run() {
                 if (eventDelayAPI.getDuration() > 0) {
-                    eventDelayAPI.setDuration(eventDelayAPI.getDuration()-1);
+                    eventDelayAPI.setDuration(eventDelayAPI.getDuration() - 1);
                 } else if (eventDelayAPI.getNowEvent().equalsIgnoreCase("none")) {
                     cancel();
-                }
-                else {
+                } else {
                     List<String> commands = CFG().getStringList("Events." + eventName + ".onEnd");
 
                     for (Player player : Bukkit.getOnlinePlayers()) {
-                        Actions.execute(player, commands);
+                        Actions.execute(plugin, player, commands);
                     }
                     eventDelayAPI.setPreviousEvent(eventDelayAPI.getNowEvent());
                     eventDelayAPI.setNowEvent("none");
                     cancel();
-                    }
                 }
-        };task.runTaskTimer(INSTANCE, 0, 20);  // Таймер на каждую секунду
+            }
+        };
+        task.runTaskTimer(plugin, 0, 20);  // Таймер на каждую секунду
     }
-
 
     public void Activate() {
         eventDelayAPI.setOpeningTimer(CFG().getInt("Events." + eventDelayAPI.getNowEvent() + ".ActivationTime", 120));  // Устанавливаем начальное время для ивента
@@ -157,24 +157,17 @@ public class Timer {
             @Override
             public void run() {
                 if (eventDelayAPI.getOpeningTimer() > 0) {
-
-                    eventDelayAPI.setOpeningTimer(eventDelayAPI.getOpeningTimer()-1);
+                    eventDelayAPI.setOpeningTimer(eventDelayAPI.getOpeningTimer() - 1);
                 } else {
-
-                    List<String> onActivated = CFG().getStringList("Events."+eventDelayAPI.getNowEvent()+".onActivated");
+                    List<String> onActivated = CFG().getStringList("Events." + eventDelayAPI.getNowEvent() + ".onActivated");
                     for (Player player : Bukkit.getOnlinePlayers()) {
-                        Actions.execute(player, onActivated);
+                        Actions.execute(plugin, player, onActivated);
                     }
-
                     eventDelayAPI.setActivationStatus("opened");
                     cancel();
                 }
             }
         };
-        task.runTaskTimerAsynchronously(INSTANCE, 0, 20);  // Таймер на каждую секунду
-
-
+        task.runTaskTimerAsynchronously(plugin, 0, 20);  // Таймер на каждую секунду
     }
-
-
 }

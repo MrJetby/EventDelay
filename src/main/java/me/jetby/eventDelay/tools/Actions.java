@@ -10,6 +10,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -19,26 +20,25 @@ import java.util.*;
 import static me.jetby.eventDelay.configurations.Config.CFG;
 import static me.jetby.eventDelay.configurations.Messages.MSG;
 import static me.jetby.eventDelay.configurations.WebhookConfig.WH;
+import static me.jetby.eventDelay.manager.Assistants.activeStatus;
 import static me.jetby.eventDelay.manager.Assistants.getNowEventPrefix;
 import static me.jetby.eventDelay.tools.Color.hex;
 import static me.jetby.eventDelay.tools.Color.setPlaceholders;
 import static me.jetby.eventDelay.tools.FormatTimer.stringFormat;
 import static me.jetby.eventDelay.tools.Webhook.sendToDiscord;
 
-
 public class Actions {
 
-
-    private static final HashMap<UUID, Long> teleportCooldowns = new HashMap<>();
+    private static final Map<UUID, Long> teleportCooldowns = new HashMap<>();
 
     public static int teleportRadius = 10;
     public static int teleportCooldown = 15;
 
-    public static void execute(Player sender, List<String> commands) {
-        executeWithDelay(sender, commands, 0);
+    public static void execute(Main plugin, Player sender, List<String> commands) {
+        executeWithDelay(plugin, sender, commands, 0);
     }
 
-    private static void executeWithDelay(Player player, List<String> commands, int index) {
+    private static void executeWithDelay(Main plugin, Player player, List<String> commands, int index) {
         if (index >= commands.size()) return;
 
         String command = commands.get(index);
@@ -47,12 +47,7 @@ public class Actions {
 
         if (args[0].equalsIgnoreCase("[DELAY]")) {
             int delayTicks = Integer.parseInt(args[1]);
-
-            Bukkit.getScheduler().runTaskLater(
-                    Main.INSTANCE,
-                    () -> executeWithDelay(player, commands, index + 1),
-                    delayTicks
-            );
+            Bukkit.getScheduler().runTaskLater(plugin, () -> executeWithDelay(plugin, player, commands, index + 1), delayTicks);
             return;
         }
 
@@ -70,7 +65,8 @@ public class Actions {
             if (command.contains("--cooldown:")) {
                 try {
                     cooldownSeconds = Integer.parseInt(command.split("--cooldown:")[1].split(" ")[0]);
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
             }
             String[] buttonParams = withoutCMD.split(";", 2);
             if (buttonParams.length < 2) {
@@ -79,12 +75,12 @@ public class Actions {
             }
             teleportCooldown = cooldownSeconds;
 
-            TextComponent msg = new TextComponent(hex(buttonParams[0].replace("--cooldown:"+cooldownSeconds, "").trim()));
+            TextComponent msg = new TextComponent(hex(buttonParams[0].replace("--cooldown:" + cooldownSeconds, "").trim()));
             msg.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/event teleport"));
-            msg.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(hex(buttonParams[1].replace("--cooldown:"+cooldownSeconds, "").trim()))));
+            msg.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(hex(buttonParams[1].replace("--cooldown:" + cooldownSeconds, "").trim()))));
 
             player.spigot().sendMessage(ChatMessageType.CHAT, msg);
-            executeWithDelay(player, commands, index + 1);
+            executeWithDelay(plugin, player, commands, index + 1);
             return;
         }
 
@@ -92,7 +88,8 @@ public class Actions {
             int radius = 10;
             try {
                 radius = Integer.parseInt(args[0].substring(args[0].indexOf("=") + 1, args[0].indexOf("]")));
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
 
             String[] params = withoutCMD.split(";");
             if (params.length < 4) return;
@@ -107,14 +104,13 @@ public class Actions {
                         Double.parseDouble(params[3].trim())
                 );
                 teleportNear(player, center, radius, 0);
-            } catch (NumberFormatException ignored) {}
-            executeWithDelay(player, commands, index + 1);
+            } catch (NumberFormatException ignored) {
+            }
+            executeWithDelay(plugin, player, commands, index + 1);
             return;
         }
 
         switch (args[0].toUpperCase()) {
-
-
             case "[MESSAGE]", "[MSG]", "[MESSAGE_ALL]": {
                 player.sendMessage(hex(withoutCMD));
                 break;
@@ -141,7 +137,8 @@ public class Actions {
                         Bukkit.getLogger().warning("Ошибка парсинга координат");
                         break;
                     }
-                }if (parts.length >= 6) {
+                }
+                if (parts.length >= 6) {
                     try {
                         String worldName = parts[0];
                         double x = Double.parseDouble(parts[1]);
@@ -164,7 +161,7 @@ public class Actions {
                         break;
                     }
                 } else {
-                    Bukkit.getLogger().warning("Некорректные данные для телепорта" );
+                    Bukkit.getLogger().warning("Некорректные данные для телепорта");
                     break;
                 }
                 break;
@@ -178,26 +175,27 @@ public class Actions {
                 break;
             }
             case "[SEND_WEBHOOK]": {
+                ConfigurationSection webhookSection = WH().getConfigurationSection("webhooks." + withoutCMD);
                 List<String> lore = new ArrayList<>();
-                for (String l : WH().getStringList("webhooks."+withoutCMD+".lore")) {
-                    l = l.replace("{prefix}", getNowEventPrefix())
-                            .replace("{duration}", String.valueOf(Main.INSTANCE.getEventDelayAPI().getDuration()))
-                            .replace("{duration_string}", stringFormat(Main.INSTANCE.getEventDelayAPI().getDuration()))
-                            .replace("{active_status}", Main.INSTANCE.getEventCMD().ActiveStatus());
+                for (String l : webhookSection.getStringList("lore")) {
+                    l = l.replace("{prefix}", getNowEventPrefix(plugin.getEventDelayAPI()))
+                            .replace("{duration}", String.valueOf(plugin.getEventDelayAPI().getDuration()))
+                            .replace("{duration_string}", stringFormat(plugin.getEventDelayAPI().getDuration()))
+                            .replace("{active_status}", activeStatus(plugin.getEventDelayAPI()));
                     l = setPlaceholders(l, null);
                     lore.add(l);
                 }
 
-                if (WH().contains("webhooks."+withoutCMD)) {
-                    sendToDiscord(WH().getString("webhooks."+withoutCMD+".Url"),
-                            WH().getString("webhooks."+withoutCMD+".Username"),
-                            WH().getString("webhooks."+withoutCMD+".Avatar"),
-                            WH().getString("webhooks."+withoutCMD+".color"),
-                            WH().getString("webhooks."+withoutCMD+".title")
-                                    .replace("{prefix}", getNowEventPrefix())
-                                    .replace("{duration}", String.valueOf(Main.INSTANCE.getEventDelayAPI().getDuration()))
-                                    .replace("{duration_string}", stringFormat(Main.INSTANCE.getEventDelayAPI().getDuration()))
-                                    .replace("{active_status}", Main.INSTANCE.getEventCMD().ActiveStatus()),
+                if (WH().contains("webhooks." + withoutCMD)) {
+                    sendToDiscord(webhookSection.getString("Url"),
+                            webhookSection.getString("Username"),
+                            webhookSection.getString("Avatar"),
+                            webhookSection.getString("color"),
+                            webhookSection.getString("title")
+                                    .replace("{prefix}", getNowEventPrefix(plugin.getEventDelayAPI()))
+                                    .replace("{duration}", String.valueOf(plugin.getEventDelayAPI().getDuration()))
+                                    .replace("{duration_string}", stringFormat(plugin.getEventDelayAPI().getDuration()))
+                                    .replace("{active_status}", activeStatus(plugin.getEventDelayAPI())),
                             lore
                     );
                 }
@@ -220,7 +218,7 @@ public class Actions {
                     if (!arg.startsWith("-pitch:")) continue;
                     pitch = Float.parseFloat(arg.replace("-pitch:", ""));
                 }
-                player.playSound(player.getLocation(), Sound.valueOf((String) args[1]), volume, pitch);
+                player.playSound(player.getLocation(), Sound.valueOf(args[1]), volume, pitch);
                 break;
             }
             case "[EFFECT]": {
@@ -234,7 +232,7 @@ public class Actions {
                     if (!arg.startsWith("-duration:")) continue;
                     duration = Integer.parseInt(arg.replace("-duration:", ""));
                 }
-                PotionEffectType effectType = PotionEffectType.getByName((String) args[1]);
+                PotionEffectType effectType = PotionEffectType.getByName(args[1]);
                 if (effectType == null) {
                     return;
                 }
@@ -275,8 +273,11 @@ public class Actions {
                 player.sendTitle(title, subTitle, fadeIn * 20, stay * 20, fadeOut * 20);
             }
         }
-        executeWithDelay(player, commands, index + 1);
+        executeWithDelay(plugin, player, commands, index + 1);
     }
+
+    private static final Random random = new Random();
+
     public static void teleportNear(Player player, Location center, int radius, int cooldownSeconds) {
         if (cooldownSeconds > 0) {
             Long lastTeleport = teleportCooldowns.get(player.getUniqueId());
@@ -287,7 +288,6 @@ public class Actions {
             }
         }
 
-        Random random = new Random();
         double angle = random.nextDouble() * 2 * Math.PI;
         double newX = center.getX() + radius * Math.cos(angle);
         double newZ = center.getZ() + radius * Math.sin(angle);
@@ -302,13 +302,15 @@ public class Actions {
             teleportCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
         }
     }
+
     public static void teleportButton(Player player, EventDelayAPI eventDelayAPI) {
+        ConfigurationSection coordinateSection = CFG().getConfigurationSection("Events." + eventDelayAPI.getNowEvent() + ".coordinates");
 
-        World world = Bukkit.getWorld(CFG().getString("Events." + eventDelayAPI.getNowEvent() + ".coordinates.world", "world"));
+        World world = Bukkit.getWorld(coordinateSection.getString("world", "world"));
 
-        String xString = hex(CFG().getString("Events." + eventDelayAPI.getNowEvent() + ".coordinates.x", "0"), player);
-        String yString = hex(CFG().getString("Events." + eventDelayAPI.getNowEvent() + ".coordinates.y", "0"), player);
-        String zString = hex(CFG().getString("Events." + eventDelayAPI.getNowEvent() + ".coordinates.z", "0"), player);
+        String xString = hex(coordinateSection.getString("x", "0"), player);
+        String yString = hex(coordinateSection.getString("y", "0"), player);
+        String zString = hex(coordinateSection.getString("z", "0"), player);
 
         int x = Integer.parseInt(xString);
         int y = Integer.parseInt(yString);
@@ -325,7 +327,6 @@ public class Actions {
             }
         }
 
-        Random random = new Random();
         double angle = random.nextDouble() * 2 * Math.PI;
         double newX = center.getX() + teleportRadius * Math.cos(angle);
         double newZ = center.getZ() + teleportRadius * Math.sin(angle);
@@ -334,12 +335,8 @@ public class Actions {
 
         Location newLocation = new Location(world, newX, newY, newZ);
         player.teleport(newLocation);
-
         if (teleportCooldown > 0) {
             teleportCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
         }
     }
-
-
-
 }

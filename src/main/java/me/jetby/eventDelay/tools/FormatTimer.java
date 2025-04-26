@@ -1,6 +1,7 @@
 package me.jetby.eventDelay.tools;
 
 public class FormatTimer {
+
     public static String stringFormat(int Sec) {
         int hour = Sec / 3600;
         int min = Sec % 3600 / 60;

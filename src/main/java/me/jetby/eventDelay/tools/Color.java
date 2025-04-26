@@ -9,11 +9,12 @@ import java.util.regex.Pattern;
 
 public class Color {
 
+    private static final Pattern COLOR_PATTERN = Pattern.compile("<(#[a-fA-F0-9]{6})>(.*?)</(#[a-fA-F0-9]{6})>");
+
     public static String hex(String message) {
 
-        Pattern pattern = Pattern.compile("<(#[a-fA-F0-9]{6})>(.*?)</(#[a-fA-F0-9]{6})>");
-        Matcher matcher = pattern.matcher(message);
-        StringBuffer resultBuffer = new StringBuffer();
+        Matcher matcher = COLOR_PATTERN.matcher(message);
+        StringBuilder resultBuffer = new StringBuilder();
 
         while (matcher.find()) {
             String startColor = matcher.group(1);  // Начальный HEX-код (#RRGGBB)
@@ -33,9 +34,8 @@ public class Color {
     public static String hex(String message, Player player) {
         message = PlaceholderAPI.setPlaceholders(player, message);
 
-        Pattern pattern = Pattern.compile("<(#[a-fA-F0-9]{6})>(.*?)</(#[a-fA-F0-9]{6})>");
-        Matcher matcher = pattern.matcher(message);
-        StringBuffer resultBuffer = new StringBuffer();
+        Matcher matcher = COLOR_PATTERN.matcher(message);
+        StringBuilder resultBuffer = new StringBuilder();
 
         while (matcher.find()) {
             String startColor = matcher.group(1);  // Начальный HEX-код (#RRGGBB)
@@ -98,7 +98,6 @@ public class Color {
     }
 
 
-
     private static int[] hexToRgb(String hex) {
         return new int[]{
                 Integer.valueOf(hex.substring(1, 3), 16), // Красный
@@ -107,7 +106,7 @@ public class Color {
         };
     }
 
-public static String setPlaceholders(String text, Player player) {
+    public static String setPlaceholders(String text, Player player) {
         text = PlaceholderAPI.setPlaceholders(player, text);
         return text;
     }

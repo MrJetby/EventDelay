@@ -1,6 +1,5 @@
 package me.jetby.eventDelay.tools;
 
-
 import lombok.Getter;
 import me.jetby.eventDelay.Main;
 
@@ -19,8 +18,9 @@ public class License {
     private final Main plugin;
     // This MUST be the same as the REQUEST_KEY defined in config.php
     private final String requestKey = "vmLAyzmppLLDgvqMPFyHLSkWdyHYqRImNueC1OLK";
-    private boolean debug = CFG().getBoolean("debug", false);
+    private final boolean debug = CFG().getBoolean("debug", false);
 
+    @Getter
     private boolean valid = false;
     private ReturnType returnType;
     @Getter
@@ -31,15 +31,10 @@ public class License {
     private String generatedIn;
 
 
-
     public License(String license, String server, Main plugin) {
         this.license = license;
         this.server = server;
         this.plugin = plugin;
-    }
-
-    public void debug() {
-        debug = true;
     }
 
     public void request() {
@@ -48,7 +43,7 @@ public class License {
             URLConnection connection = url.openConnection();
             if (debug) System.out.println("[DEBUG] Попытка подключится к сайту: " + server);
             connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.4; en-US; rv:1.9.2.2) Gecko/20100316 Firefox/3.6.2");
-            
+
             connection.setRequestProperty("License-Key", license);
             connection.setRequestProperty("Plugin-Name", plugin.getDescription().getName());
             connection.setRequestProperty("Request-Key", requestKey);
@@ -86,15 +81,6 @@ public class License {
                 ex.printStackTrace();
             }
         }
-    }
-
-    public boolean isValid() {
-        if (valid) {
-
-
-
-        }
-        return valid;
     }
 
     public ReturnType getReturn() {

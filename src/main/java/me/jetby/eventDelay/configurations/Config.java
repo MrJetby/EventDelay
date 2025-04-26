@@ -13,6 +13,7 @@ import java.util.logging.Level;
 import static org.bukkit.Bukkit.getLogger;
 
 public class Config {
+
     private static FileConfiguration config;
     private static File file;
 
@@ -31,7 +32,7 @@ public class Config {
     }
 
     public void reloadCfg(Plugin plugin) {
-        if(!file.exists()) {
+        if (!file.exists()) {
             plugin.getDataFolder().mkdirs();
             plugin.saveResource("config.yml", true);
         }
@@ -42,6 +43,7 @@ public class Config {
             Bukkit.getConsoleSender().sendMessage("Не удалось перезагрузить конфигурацию! (config.yml)");
         }
     }
+
     public void saveCfg(Plugin plugin) {
         try {
             File file = new File(plugin.getDataFolder(), "config.yml");

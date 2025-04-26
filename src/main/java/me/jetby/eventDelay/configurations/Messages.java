@@ -1,6 +1,5 @@
 package me.jetby.eventDelay.configurations;
 
-
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -10,8 +9,6 @@ import org.bukkit.plugin.Plugin;
 import java.io.File;
 import java.io.IOException;
 import java.util.logging.Level;
-
-import static org.bukkit.Bukkit.getLogger;
 
 public class Messages {
 
@@ -33,7 +30,7 @@ public class Messages {
     }
 
     public void reloadCfg(Plugin plugin) {
-        if(!file.exists()) {
+        if (!file.exists()) {
             plugin.getDataFolder().mkdirs();
             plugin.saveResource("messages.yml", true);
         }
@@ -44,12 +41,13 @@ public class Messages {
             Bukkit.getConsoleSender().sendMessage("Не удалось перезагрузить конфигурацию! (messages.yml)");
         }
     }
+
     public void saveCfg(Plugin plugin) {
         try {
             File file = new File(plugin.getDataFolder(), "messages.yml");
             config.save(file);
         } catch (IOException e) {
-            getLogger().log(Level.SEVERE, "Не удалось сохранить файл messages.yml", e);
+            Bukkit.getLogger().log(Level.SEVERE, "Не удалось сохранить файл messages.yml", e);
         }
     }
 }

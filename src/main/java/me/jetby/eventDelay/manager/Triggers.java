@@ -1,7 +1,5 @@
 package me.jetby.eventDelay.manager;
 
-import lombok.Getter;
-import lombok.Setter;
 import me.jetby.eventDelay.Main;
 import me.jetby.eventDelay.tools.Actions;
 import me.jetby.eventDelay.tools.EventDelayAPI;
@@ -16,12 +14,12 @@ import static me.jetby.eventDelay.manager.Assistants.getRandomEvent;
 
 public class Triggers {
 
+    private final Main plugin;
     private final EventDelayAPI eventDelayAPI;
 
-
-
-    public Triggers(EventDelayAPI eventDelayAPI) {
-        this.eventDelayAPI = eventDelayAPI;
+    public Triggers(Main plugin) {
+        this.plugin = plugin;
+        this.eventDelayAPI = plugin.getEventDelayAPI();
     }
 
     public void nextRandomEvent() {
@@ -29,6 +27,7 @@ public class Triggers {
             eventDelayAPI.setNextEvent(getRandomEvent());
         }
     }
+
     public void startRandomEvent() {
         if (eventDelayAPI.getNowEvent().equalsIgnoreCase("none")) {
             eventDelayAPI.setNowEvent(eventDelayAPI.getNextEvent());
@@ -42,7 +41,6 @@ public class Triggers {
     }
 
 
-
     public void stopEvent(String eventName) {
         if (eventDelayAPI.getNowEvent().equalsIgnoreCase("none")) {
             return;
@@ -52,7 +50,7 @@ public class Triggers {
         List<String> commands = CFG().getStringList("Events." + eventName + ".onEnd");
 
         for (Player player : Bukkit.getOnlinePlayers()) {
-            Actions.execute(player, commands);
+            Actions.execute(plugin, player, commands);
         }
         eventDelayAPI.setPreviousEvent(eventDelayAPI.getNowEvent());
         eventDelayAPI.setNowEvent("none");
@@ -76,12 +74,13 @@ public class Triggers {
             eventDelayAPI.setTimerUntilNextEvent(CFG().getInt("Timer", 1800));
         }
     }
+
     public void triggerEvent(String eventName) {
         eventDelayAPI.setOpeningTimer(CFG().getInt("Events." + eventName + ".Duration"));
 
         List<String> defaultCommands = CFG().getStringList("Events." + eventName + ".onStart.default");
         for (Player player : Bukkit.getOnlinePlayers()) {
-            Actions.execute(player, defaultCommands);
+            Actions.execute(plugin, player, defaultCommands);
         }
         if (CFG().contains("Events." + eventName + ".onStart.random")) {
             Set<String> sections = CFG().getConfigurationSection("Events." + eventName + ".onStart.random").getKeys(false);
@@ -94,14 +93,14 @@ public class Triggers {
                 if (randomSection != null) {
                     List<String> randomCommands = CFG().getStringList("Events." + eventName + ".onStart.random." + randomSection);
                     for (Player player : Bukkit.getOnlinePlayers()) {
-                        Actions.execute(player, randomCommands);
+                        Actions.execute(plugin, player, randomCommands);
                     }
                 }
             }
         }
 
 
-        Main.INSTANCE.getTimer().startDuration(eventDelayAPI.getNowEvent(), eventDelayAPI.getOpeningTimer());
+        plugin.getTimer().startDuration(eventDelayAPI.getNowEvent(), eventDelayAPI.getOpeningTimer());
     }
 
 }

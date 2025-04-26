@@ -1,6 +1,5 @@
 package me.jetby.eventDelay.configurations;
 
-
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -33,7 +32,7 @@ public class WebhookConfig {
     }
 
     public void reloadCfg(Plugin plugin) {
-        if(!file.exists()) {
+        if (!file.exists()) {
             plugin.getDataFolder().mkdirs();
             plugin.saveResource("webhook.yml", true);
         }
@@ -44,6 +43,7 @@ public class WebhookConfig {
             Bukkit.getConsoleSender().sendMessage("Не удалось перезагрузить конфигурацию! (webhook.yml)");
         }
     }
+
     public void saveCfg(Plugin plugin) {
         try {
             File file = new File(plugin.getDataFolder(), "webhook.yml");
