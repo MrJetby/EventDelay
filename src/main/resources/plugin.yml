@@ -1,5 +1,5 @@
 name: EventDelay
-version: '${project.version}'
+version: '2.6.3'
 main: me.jetby.eventDelay.Main
 api-version: '1.13'
 prefix: EventDelay

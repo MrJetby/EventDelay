@@ -39,6 +39,15 @@ public class Triggers {
         eventDelayAPI.setNextEvent(getRandomEvent());
         triggerEvent(eventDelayAPI.getNowEvent());
     }
+    public void startEvent(String eventName) {
+        if (eventDelayAPI.getNowEvent().equalsIgnoreCase("none")) {
+            eventDelayAPI.setNowEvent(eventName);
+            stopEvent(eventDelayAPI.getNowEvent());
+            eventDelayAPI.setNowEvent(eventName);
+            eventDelayAPI.setNextEvent(getRandomEvent());
+            triggerEvent(eventName);
+        }
+    }
 
 
     public void stopEvent(String eventName) {
@@ -71,7 +80,7 @@ public class Triggers {
 
         // Only reset timer if in DEFAULT mode
         if (CFG().getString("TimerType", "DEFAULT").equalsIgnoreCase("DEFAULT")) {
-            eventDelayAPI.setTimerUntilNextEvent(CFG().getInt("Timer", 1800));
+            eventDelayAPI.setDelay(CFG().getInt("Timer", 1800));
         }
     }
 

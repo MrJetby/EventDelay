@@ -13,7 +13,7 @@ public class EventDelayAPI {
     private String nowEvent;
     private String nextEvent;
     private String ActivationStatus;
-    private int timerUntilNextEvent;
+    private int delay;
     private int duration;
     private int timeUntilDuration;
     private int openingTimer;

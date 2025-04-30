@@ -66,8 +66,9 @@ public final class Main extends JavaPlugin {
             getLogger().info("------------------------");
         } else {
             getLogger().info("------------------------");
-            getLogger().info(" |- Login denied");
-            getLogger().info(" |- Return error " + license.getReturn());
+            getLogger().info(" (✘) Ошибка: "+license.getReturn());
+            getLogger().info(" |- Обратитесь за помощью");
+            getLogger().info(" |- к нам: https://dsc.gg/treexstudio");
             getLogger().info("------------------------");
             getServer().getPluginManager().disablePlugin(this);
         }

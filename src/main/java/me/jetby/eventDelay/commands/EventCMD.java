@@ -20,7 +20,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static me.jetby.eventDelay.configurations.Config.CFG;
@@ -68,8 +67,8 @@ public class EventCMD implements TabExecutor {
                     if (isEventActive(eventDelayAPI)) {
                         for (String m : MSG().getStringList("delay.active")) {
                             m = m
-                                    .replace("{time_to_start}", String.valueOf(eventDelayAPI.getTimerUntilNextEvent()))
-                                    .replace("{time_to_start_string}", stringFormat(eventDelayAPI.getTimerUntilNextEvent()))
+                                    .replace("{time_to_start}", String.valueOf(eventDelayAPI.getDelay()))
+                                    .replace("{time_to_start_string}", stringFormat(eventDelayAPI.getDelay()))
                                     .replace("{prefix}", getNowEventPrefix(eventDelayAPI))
                             ;
                             m = hex(m, p);
@@ -80,8 +79,8 @@ public class EventCMD implements TabExecutor {
                         for (String m : MSG().getStringList("delay.time")) {
                             m = hex(m, p);
                             sender.sendMessage(m
-                                    .replace("{time_to_start}", String.valueOf(eventDelayAPI.getTimerUntilNextEvent()))
-                                    .replace("{time_to_start_string}", stringFormat(eventDelayAPI.getTimerUntilNextEvent()))
+                                    .replace("{time_to_start}", String.valueOf(eventDelayAPI.getDelay()))
+                                    .replace("{time_to_start_string}", stringFormat(eventDelayAPI.getDelay()))
                             );
                         }
                     }
@@ -116,17 +115,25 @@ public class EventCMD implements TabExecutor {
                         p.sendMessage(hex(MSG().getString("messages.noPerm")));
                         return true;
                     }
-                    eventDelayAPI.setActivationStatus("false");
-                    triggers.startRandomEvent();
-                    eventDelayAPI.setTimerUntilNextEvent(CFG().getInt("Timer", 1800));
-                    break;
+
+                    if (args.length==1) {
+                        eventDelayAPI.setActivationStatus("false");
+                        triggers.startRandomEvent();
+                        eventDelayAPI.setDelay(CFG().getInt("Timer", 1800));
+                        break;
+                    } else if (args.length==2) {
+                        eventDelayAPI.setActivationStatus("false");
+                        triggers.startEvent(args[1]);
+                        eventDelayAPI.setDelay(CFG().getInt("Timer", 1800));
+                    }
+
                 }
                 case "teleport": {
                     if (eventDelayAPI.getNowEvent().equalsIgnoreCase("none")) {
                         break;
                     }
 
-                    teleportButton(p, eventDelayAPI);
+                    teleportButton(plugin, p, eventDelayAPI);
                     break;
                 }
                 case "stop": {
@@ -151,24 +158,66 @@ public class EventCMD implements TabExecutor {
                         return true;
                     }
 
-                    if (args.length < 2) {
+                    if (args.length < 3) {
 
-                        p.sendMessage(hex("&a[HELP] &f &c/event timer reset", p));
-                        p.sendMessage(hex("&a[HELP] &f &c/event timer set <в секундах>", p));
+                        p.sendMessage(hex("&a[HELP] &fСбросить таймер &c/event timer reset &7<duration/activation/delay>", p));
+                        p.sendMessage(hex("&a[HELP] &fПоставить значение &c/event timer set &7<duration/activation/delay> <в секундах>", p));
 
                         return true;
                     }
-                    if (args[1].equalsIgnoreCase("set")) {
-                        if (args[2].equalsIgnoreCase("reset")) {
-                            eventDelayAPI.setTimerUntilNextEvent(CFG().getInt("Timer", 1800));
-                            p.sendMessage("Вы успешно сбросили время до начала ивента");
+                    if (args[1].equalsIgnoreCase("reset")) {
+                        if (args[2].equalsIgnoreCase("duration")) {
 
-                        } else if (args[1].equalsIgnoreCase("set") && args.length == 3) {
-                            eventDelayAPI.setTimerUntilNextEvent(Integer.parseInt(args[2]));
-                            sender.sendMessage("&a[HELP] &fВы успешно поставили время до начала ивента на &a".replace('&', '§') + Integer.parseInt(args[2]));
+                            if (eventDelayAPI.getNowEvent()!=null) {
+                                eventDelayAPI.setDuration(CFG().getInt("Events."+eventDelayAPI.getNowEvent()+".Duration", 300));
+                                sender.sendMessage("Вы успешно сбросили время для таймера &a"+args[2]);
+                            } else {
+                                sender.sendMessage(hex("&cНету активного ивента."));
+                            }
 
+
+                        } else if (args[2].equalsIgnoreCase("activation")) {
+                            if (eventDelayAPI.getNowEvent()!=null) {
+                                eventDelayAPI.setOpeningTimer(CFG().getInt("Events."+eventDelayAPI.getNowEvent()+".ActivationTime", 60));
+                                sender.sendMessage("Вы успешно сбросили время для таймера &a"+args[2]);
+                            } else {
+                                sender.sendMessage(hex("&cНету активного ивента."));
+                            }
+
+                        } else if (args[2].equalsIgnoreCase("delay")) {
+                            eventDelayAPI.setDelay(CFG().getInt("Timer", 1800));
+                            sender.sendMessage("Вы успешно сбросили время для таймера &a"+args[2]);
+                        } else {
+                            sender.sendMessage("Таймер "+args[2]+" не был найден.");
                         }
+                        p.sendMessage("Вы успешно сбросили время до начала ивента");
+                        break;
                     }
+                    if (args[1].equalsIgnoreCase("set") && args.length == 4) {
+                        if (args[2].equalsIgnoreCase("duration")) {
+                            if (eventDelayAPI.getNowEvent()!=null) {
+                                eventDelayAPI.setDuration(Integer.parseInt(args[3]));
+                                sender.sendMessage(hex("&a[HELP] &fУ таймера &e" + args[2] + " &fуспешно установлено значение &a" + args[3] + "&f."));
+                            } else {
+                                sender.sendMessage("Таймер "+args[2]+" не был найден.");
+                            }
+                        } else if (args[2].equalsIgnoreCase("activation")) {
+                            if (eventDelayAPI.getNowEvent()!=null) {
+                                eventDelayAPI.setOpeningTimer(Integer.parseInt(args[3]));
+                                sender.sendMessage(hex("&a[HELP] &fУ таймера &e"+args[2]+" &fуспешно установлено значение &a"+args[3]+"&f."));
+                            } else {
+                                sender.sendMessage("Таймер "+args[2]+" не был найден.");
+                            }
+
+                        } else if (args[2].equalsIgnoreCase("delay")) {
+                            eventDelayAPI.setDelay(Integer.parseInt(args[3]));
+                            sender.sendMessage(hex("&a[HELP] &fУ таймера &e"+args[2]+" &fуспешно установлено значение &a"+args[3]+"&f."));
+                        } else {
+                            sender.sendMessage("Таймер "+args[2]+" не был найден.");
+                        }
+
+                    }
+
                     break;
                 }
                 case "setNext": {
@@ -285,7 +334,7 @@ public class EventCMD implements TabExecutor {
                     }
                     eventDelayAPI.setActivationStatus("false");
                     triggers.startRandomEvent();
-                    eventDelayAPI.setTimerUntilNextEvent(CFG().getInt("Timer", 1800));
+                    eventDelayAPI.setDelay(CFG().getInt("Timer", 1800));
                     break;
                 }
                 case "stop": {
@@ -303,29 +352,65 @@ public class EventCMD implements TabExecutor {
                     break;
                 }
                 case "timer": {
-                    if (!sender.hasPermission("eventdelay.admin")) {
-                        sender.sendMessage(MSG().getString("messages.noPerm"));
-                        return true;
-                    }
 
-                    if (args.length < 2) {
+                    if (args.length < 3) {
 
-                        sender.sendMessage("&a[HELP] &f &c/event timer reset");
-                        sender.sendMessage("&a[HELP] &f &c/event timer set <в секундах>");
+                        sender.sendMessage(hex("[HELP] Сбросить таймер /event timer reset <duration/activation/delay>"));
+                        sender.sendMessage(hex("[HELP] Поставить значение /event timer set <duration/activation/delay> <в секундах>"));
 
                         return true;
                     }
-                    if (args[1].equalsIgnoreCase("set")) {
-                        if (args[2].equalsIgnoreCase("reset")) {
-                            eventDelayAPI.setTimerUntilNextEvent(CFG().getInt("Timer", 1800));
-                            sender.sendMessage("Вы успешно сбросили время до начала ивента");
+                    if (args[1].equalsIgnoreCase("reset")) {
+                        if (args[2].equalsIgnoreCase("duration")) {
 
-                        } else if (args[1].equalsIgnoreCase("set") && args.length == 3) {
-                            eventDelayAPI.setTimerUntilNextEvent(Integer.parseInt(args[2]));
-                            sender.sendMessage("&a[HELP] &fВы успешно поставили время до начала ивента на &a".replace('&', '§') + Integer.parseInt(args[2]));
+                            if (eventDelayAPI.getNowEvent()!=null) {
+                                eventDelayAPI.setDuration(CFG().getInt("Events."+eventDelayAPI.getNowEvent()+".Duration", 300));
+                                sender.sendMessage("Вы успешно сбросили время для таймера &a"+args[2]);
+                            } else {
+                                sender.sendMessage(hex("Нету активного ивента."));
+                            }
 
+
+                        } else if (args[2].equalsIgnoreCase("activation")) {
+                            if (eventDelayAPI.getNowEvent()!=null) {
+                                eventDelayAPI.setOpeningTimer(CFG().getInt("Events."+eventDelayAPI.getNowEvent()+".ActivationTime", 60));
+                                sender.sendMessage("Вы успешно сбросили время для таймера "+args[2]);
+                            } else {
+                                sender.sendMessage(hex("Нету активного ивента."));
+                            }
+
+                        } else if (args[2].equalsIgnoreCase("delay")) {
+                            eventDelayAPI.setDelay(CFG().getInt("Timer", 1800));
+                            sender.sendMessage("Вы успешно сбросили время для таймера "+args[2]);
+                        } else {
+                            sender.sendMessage("Таймер "+args[2]+" не был найден.");
+                        }
+                        sender.sendMessage("Вы успешно сбросили время до начала ивента");
+                        break;
+                    }
+                    if (args[1].equalsIgnoreCase("set") && args.length == 4) {
+                        if (args[2].equalsIgnoreCase("duration")) {
+                            if (eventDelayAPI.getNowEvent()!=null) {
+                                eventDelayAPI.setDuration(Integer.parseInt(args[3]));
+                                sender.sendMessage(hex("[HELP] У таймера " + args[2] + " успешно установлено значение " + args[3] + "."));
+                            } else {
+                                sender.sendMessage("Таймер "+args[2]+" не был найден.");
+                            }
+                        } else if (args[2].equalsIgnoreCase("activation")) {
+                            if (eventDelayAPI.getNowEvent()!=null) {
+                                eventDelayAPI.setOpeningTimer(Integer.parseInt(args[3]));
+                                sender.sendMessage(hex("[HELP] У таймера "+args[2]+" успешно установлено значение "+args[3]+"."));
+                            } else {
+                                sender.sendMessage("Таймер "+args[2]+" не был найден.");
+                            }
+                        } else if (args[2].equalsIgnoreCase("delay")) {
+                            eventDelayAPI.setDelay(Integer.parseInt(args[3]));
+                            sender.sendMessage(hex("[HELP] У таймера "+args[2]+" успешно установлено значение "+args[3]+"."));
+                        } else {
+                            sender.sendMessage("Таймер "+args[2]+" не был найден.");
                         }
                     }
+
                     break;
                 }
                 case "next": {
@@ -429,6 +514,27 @@ public class EventCMD implements TabExecutor {
             return completions.stream()
                     .filter(cmd -> cmd.startsWith(input))
                     .collect(Collectors.toList());
+        }
+
+        if (args[0].equalsIgnoreCase("timer")) {
+            if (args.length==2) {
+                completions.add("set");
+                completions.add("reset");
+                String input = args[1].toLowerCase();
+                return completions.stream()
+                        .filter(cmd -> cmd.startsWith(input))
+                        .collect(Collectors.toList());
+            }
+            if (args.length==3) {
+                completions.add("duration");
+                completions.add("activation");
+                completions.add("delay");
+
+                String input = args[2].toLowerCase();
+                return completions.stream()
+                        .filter(cmd -> cmd.startsWith(input))
+                        .collect(Collectors.toList());
+            }
         }
 
         if (args.length == 2) {

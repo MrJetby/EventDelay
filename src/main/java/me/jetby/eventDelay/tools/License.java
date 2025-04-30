@@ -83,8 +83,32 @@ public class License {
         }
     }
 
-    public ReturnType getReturn() {
-        return returnType;
+    public String getReturn() {
+
+        if (returnType.equals(ReturnType.VALID)) {
+            return "Лицензия действительна!";
+        }
+
+
+        if (returnType.equals(ReturnType.INVALID_LICENSE)) {
+            return "Лицензия не существует!";
+        }
+
+        if (returnType.equals(ReturnType.LICENSE_NOT_FOUND)) {
+            return "Лицензия не найдена!";
+        }
+
+        if (returnType.equals(ReturnType.PLUGIN_NAME_NOT_FOUND)) {
+            return "Такого плагина не существует!";
+        }
+
+        if (returnType.equals(ReturnType.TOO_MANY_IPS)) {
+            return "Лимит IP с этой лицензией превышен!";
+        }
+
+
+
+        return returnType.toString();
     }
 
     public enum ReturnType {

@@ -48,8 +48,8 @@ public class EventDelayExpansion extends PlaceholderExpansion {
             case "next" -> eventDelayAPI.getNextEvent();
             case "previous" -> eventDelayAPI.getPreviousEvent();
             case "previous_prefix" -> Assistants.getPreviousEventPrefix(eventDelayAPI);
-            case "time_to_start" -> Integer.toString(eventDelayAPI.getTimerUntilNextEvent());
-            case "time_to_start_string" -> FormatTimer.stringFormat(eventDelayAPI.getTimerUntilNextEvent());
+            case "time_to_start" -> Integer.toString(eventDelayAPI.getDelay());
+            case "time_to_start_string" -> FormatTimer.stringFormat(eventDelayAPI.getDelay());
             case "duration" -> String.valueOf(eventDelayAPI.getOpeningTimer());
             case "duration_string" -> FormatTimer.stringFormat(eventDelayAPI.getOpeningTimer());
             case "prefix" -> Assistants.getNowEventPrefix(eventDelayAPI);

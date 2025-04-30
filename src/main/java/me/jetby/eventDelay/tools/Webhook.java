@@ -10,9 +10,10 @@ import static org.bukkit.Bukkit.getLogger;
 
 public class Webhook {
 
+
     public static void sendToDiscord(String webhookUrl, String username, String avatar, String color, String title, List<String> textList) {
         try {
-//            System.out.println("SexY"); нам это не нужно уже я так думаю, хех
+            System.out.println("SexY");
             URL url = new URL(webhookUrl);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
@@ -28,16 +29,16 @@ public class Webhook {
             }
 
             String json = """
-                    {
-                      "username": "%s",
-                      "avatar_url": "%s",
-                      "embeds": [{
-                        "title": "%s",
-                        "description": "%s",
-                        "color": %d
-                      }]
-                    }
-                    """.formatted(username, avatar, title, descriptionBuilder.toString(), decimalColor);
+                {
+                  "username": "%s",
+                  "avatar_url": "%s",
+                  "embeds": [{
+                    "title": "%s",
+                    "description": "%s",
+                    "color": %d
+                  }]
+                }
+                """.formatted(username, avatar, title, descriptionBuilder.toString(), decimalColor);
 
             try (OutputStream os = connection.getOutputStream()) {
                 os.write(json.getBytes());

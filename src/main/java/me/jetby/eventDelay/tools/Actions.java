@@ -31,8 +31,8 @@ public class Actions {
 
     private static final Map<UUID, Long> teleportCooldowns = new HashMap<>();
 
-    public static int teleportRadius = 10;
-    public static int teleportCooldown = 15;
+    private static int teleportRadius = 10;
+    private static int teleportCooldown = 15;
 
     public static void execute(Main plugin, Player sender, List<String> commands) {
         executeWithDelay(plugin, sender, commands, 0);
@@ -103,7 +103,7 @@ public class Actions {
                         Double.parseDouble(params[2].trim()),
                         Double.parseDouble(params[3].trim())
                 );
-                teleportNear(player, center, radius, 0);
+                teleportNear(plugin, player, center, radius, 0);
             } catch (NumberFormatException ignored) {
             }
             executeWithDelay(plugin, player, commands, index + 1);
@@ -154,7 +154,10 @@ public class Actions {
                         }
 
                         Location location = new Location(world, x, y, z, yaw, pitch);
-                        player.teleport(location);
+
+                        Bukkit.getScheduler().runTask(plugin, ()-> {
+                            player.teleport(location);
+                        });
 
                     } catch (NumberFormatException e) {
                         Bukkit.getLogger().warning("Ошибка парсинга координат");
@@ -167,11 +170,18 @@ public class Actions {
                 break;
             }
             case "[PLAYER]": {
-                Bukkit.dispatchCommand(player, hex(withoutCMD.replace("%player%", player.getName())));
+                String finalWithoutCMD = withoutCMD;
+                Bukkit.getScheduler().runTask(plugin, ()-> {
+                    player.chat("/"+finalWithoutCMD.replace("%player%", player.getName()));
+                });
+
                 break;
             }
             case "[CONSOLE]": {
-                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), hex(withoutCMD.replace("%player%", player.getName())));
+                String finalWithoutCMD = withoutCMD;
+                Bukkit.getScheduler().runTask(plugin, ()-> {
+                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), hex(finalWithoutCMD.replace("%player%", player.getName())));
+                });
                 break;
             }
             case "[SEND_WEBHOOK]": {
@@ -278,7 +288,7 @@ public class Actions {
 
     private static final Random random = new Random();
 
-    public static void teleportNear(Player player, Location center, int radius, int cooldownSeconds) {
+    public static void teleportNear(Main plugin, Player player, Location center, int radius, int cooldownSeconds) {
         if (cooldownSeconds > 0) {
             Long lastTeleport = teleportCooldowns.get(player.getUniqueId());
             if (lastTeleport != null && (System.currentTimeMillis() - lastTeleport) < cooldownSeconds * 1000L) {
@@ -296,14 +306,17 @@ public class Actions {
         double newY = world.getHighestBlockYAt((int) newX, (int) newZ) + 1;
 
         Location newLocation = new Location(world, newX, newY, newZ);
-        player.teleport(newLocation);
+        Bukkit.getScheduler().runTask(plugin, ()-> {
+            player.teleport(newLocation);
+        });
+
 
         if (cooldownSeconds > 0) {
             teleportCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
         }
     }
 
-    public static void teleportButton(Player player, EventDelayAPI eventDelayAPI) {
+    public static void teleportButton(Main plugin, Player player, EventDelayAPI eventDelayAPI) {
         ConfigurationSection coordinateSection = CFG().getConfigurationSection("Events." + eventDelayAPI.getNowEvent() + ".coordinates");
 
         World world = Bukkit.getWorld(coordinateSection.getString("world", "world"));
@@ -334,7 +347,10 @@ public class Actions {
         double newY = world.getHighestBlockYAt((int) newX, (int) newZ) + 1;
 
         Location newLocation = new Location(world, newX, newY, newZ);
-        player.teleport(newLocation);
+        Bukkit.getScheduler().runTask(plugin, ()-> {
+            player.teleport(newLocation);
+        });
+
         if (teleportCooldown > 0) {
             teleportCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
         }
