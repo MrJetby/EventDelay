@@ -11,6 +11,7 @@ import me.jetby.eventDelay.tools.EventDelayAPI;
 import me.jetby.eventDelay.tools.EventDelayExpansion;
 import me.jetby.eventDelay.tools.License;
 import org.bstats.bukkit.Metrics;
+import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import static me.jetby.eventDelay.configurations.Config.CFG;
@@ -35,46 +36,48 @@ public final class Main extends JavaPlugin {
         WebhookConfig webhookConfig = new WebhookConfig();
         webhookConfig.loadYamlFile(this);
 
-        eventDelayAPI = new EventDelayAPI(CFG().getBoolean("Freeze", true),
-                CFG().getInt("Timer", 1800),
-                CFG().getInt("MinPlayers", 3),
-                "none",
-                "none",
-                "none");
 
-        triggers = new Triggers(this);
-
-        timer = new Timer(this);
-
-        timer.initialize();
-        timer.startTimer();
         getLogger().info("-------> Login <-------");
-        license = new License(
-                getConfig().getString("license.key"),
-                getConfig().getString("license.url", "http://treexstudio.site"),
-                this);
+        license = new License(getConfig().getString("license.key"), this);
         license.request();
-        getLogger().info(" |- License checking: " + license.getLicense());
+        Bukkit.getConsoleSender().sendMessage("["+getName()+"]"+" §b♻ Проверка лицензии... ");
         if (license.isValid()) {
+            getLogger().info("");
+            Bukkit.getConsoleSender().sendMessage("["+getName()+"]"+" §a✔ Лицензия действительна ");
+            getLogger().info("");
+            getLogger().info("-----------------------");
+
+
+            eventDelayAPI = new EventDelayAPI(CFG().getBoolean("Freeze", true),
+                    CFG().getInt("Timer", 1800),
+                    CFG().getInt("MinPlayers", 3),
+                    "none",
+                    "none",
+                    "none");
+            triggers = new Triggers(this);
+            timer = new Timer(this);
+            timer.initialize();
+            timer.startTimer();
             if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
                 new EventDelayExpansion(this).register();
             }
-            getLogger().info("------------------------");
-            getLogger().info(" (✔) Лицензия действительна");
-            getLogger().info("------------------------");
-            getLogger().info(" |- Добро пожаловать: " + license.getLicensedTo());
-            getLogger().info("------------------------");
-        } else {
-            getLogger().info("------------------------");
-            getLogger().info(" (✘) Ошибка: "+license.getReturn());
-            getLogger().info(" |- Обратитесь за помощью");
-            getLogger().info(" |- к нам: https://dsc.gg/treexstudio");
+            getCommand("event").setExecutor(new EventCMD(this));
+            triggers.nextRandomEvent();
+            new Metrics(this, 23730);
+            return;
+
+        } else if (!license.isValid()){
+            getLogger().info("");
+            Bukkit.getConsoleSender().sendMessage("["+getName()+"]"+" §c"+license.getReturn());
+            getLogger().info("");
+            Bukkit.getConsoleSender().sendMessage("["+getName()+"]"+" §eЕсли вы не смогли решить проблему самостоятельно,");
+            Bukkit.getConsoleSender().sendMessage("["+getName()+"]"+" §eтогда обратитесь к нам: §bhttps://dsc.gg/treexstudio");
             getLogger().info("------------------------");
             getServer().getPluginManager().disablePlugin(this);
+            return;
         }
-        getCommand("event").setExecutor(new EventCMD(this));
-        triggers.nextRandomEvent();
-        new Metrics(this, 23730);
+        getServer().getPluginManager().disablePlugin(this);
+
     }
 
 }

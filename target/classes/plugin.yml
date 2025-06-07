@@ -1,5 +1,5 @@
 name: EventDelay
-version: '2.6.3'
+version: '2.6.5'
 main: me.jetby.eventDelay.Main
 api-version: '1.13'
 prefix: EventDelay

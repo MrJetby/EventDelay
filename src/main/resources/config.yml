@@ -1,6 +1,5 @@
 license:
   key: 'ВСТАВЬТЕ_СЮДА_ВАШУ_ЛИЦЕНЗИЮ'
-  url: "http://treexstudio.site"
 
 debug: false
 
@@ -49,7 +48,7 @@ Events:
         - 30
       warnActions:
         - "[MESSAGE] "
-        - "[MESSAGE] {prefix}"
+        - "[MESSAGE] %eventdelay_prefix%"
         - "[MESSAGE] Редкость: &5Эпический"
         - "[MESSAGE] Ивент начнётся через &6%eventdelay_time_to_start%"
         - "[MESSAGE] "
@@ -66,4 +65,4 @@ Events:
 
     onActivated: { }
     onEnd:
-      - "[MESSAGE] Конец ивента {prefix}"
+      - "[MESSAGE] Конец ивента %eventdelay_prefix%"

@@ -112,7 +112,7 @@ public class Actions {
 
         switch (args[0].toUpperCase()) {
             case "[MESSAGE]", "[MSG]", "[MESSAGE_ALL]": {
-                player.sendMessage(hex(withoutCMD));
+                player.sendMessage(hex(withoutCMD, player));
                 break;
             }
             case "[TELEPORT]", "[TP]": {
@@ -180,7 +180,7 @@ public class Actions {
             case "[CONSOLE]": {
                 String finalWithoutCMD = withoutCMD;
                 Bukkit.getScheduler().runTask(plugin, ()-> {
-                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), hex(finalWithoutCMD.replace("%player%", player.getName())));
+                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), hex(finalWithoutCMD.replace("%player%", player.getName()), player));
                 });
                 break;
             }
@@ -214,7 +214,7 @@ public class Actions {
 
             case "[ACTIONBAR]": {
                 player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(hex(withoutCMD
-                        .replace("%player%", player.getName()))));
+                        .replace("%player%", player.getName()), player)));
                 break;
             }
             case "[SOUND]": {

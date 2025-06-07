@@ -9,7 +9,9 @@ import org.bukkit.scheduler.BukkitRunnable;
 
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +38,7 @@ public class Timer {
     private static final Map<String, String> timezoneEvents = new HashMap<>();
     private static final DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
     private static ZoneId zoneId;
-    private static String lastTriggeredTime = "";
+    private static long nextEventTime = 0;
 
     public void initialize() {
         String timezone = CFG().getString("TimeZone", "GMT+3").replace("UTC", "GMT");
@@ -62,7 +64,7 @@ public class Timer {
     }
 
     private void startDefaultTimer(int timer) {
-        if (startingTimer!=null) {
+        if (startingTimer != null) {
             startingTimer.cancel();
         }
         eventDelayAPI.setDelay(timer);
@@ -80,11 +82,11 @@ public class Timer {
                     checkWarnings();
                 } else {
                     triggers.triggerNextEvent();
-                    cancel();
+                    eventDelayAPI.setDelay(timer);
                 }
             }
         };
-        task.runTaskTimerAsynchronously(plugin, 0, 20);
+        task.runTaskTimerAsynchronously(plugin, 0, 20L);
         startingTimer = task;
     }
 
@@ -103,66 +105,78 @@ public class Timer {
             }
         }
     }
+
     private void startTimezoneTimer() {
-        int secondsUntilNextEvent = getSecondsUntilNextTimezoneEvent();
+        calculateNextEventTime();
+        int secondsUntilNextEvent = (int) (nextEventTime - System.currentTimeMillis() / 1000);
         eventDelayAPI.setDelay(secondsUntilNextEvent);
 
         BukkitRunnable task = new BukkitRunnable() {
             @Override
             public void run() {
-                if (eventDelayAPI.getDelay() > 0) {
-                    eventDelayAPI.setDelay(eventDelayAPI.getDelay() - 1);
-                    checkWarnings();
-                } else {
-                    triggers.triggerNextEvent();
-                    cancel();
-                }
+                long currentTime = System.currentTimeMillis() / 1000;
+                long secondsUntil = nextEventTime - currentTime;
 
-                LocalTime now = LocalTime.now(zoneId);
-                String currentTime = now.format(timeFormatter);
-
-                if (!currentTime.equals(lastTriggeredTime) && timezoneEvents.containsKey(currentTime)) {
+                if (secondsUntil == 1) {
                     if (Bukkit.getOnlinePlayers().size() >= eventDelayAPI.getMinPlayers()) {
-                        String forcedEvent = timezoneEvents.get(currentTime);
+                        String currentTimeStr = LocalTime.now(zoneId).format(timeFormatter);
+                        String forcedEvent = timezoneEvents.get(currentTimeStr);
                         if (forcedEvent != null && !forcedEvent.isEmpty()) {
                             eventDelayAPI.setNextEvent(forcedEvent);
                         }
                         triggers.triggerNextEvent();
-                        lastTriggeredTime = currentTime;
+                        calculateNextEventTime();
                     }
                 }
 
-                if (!currentTime.equals(lastTriggeredTime)) {
-                    lastTriggeredTime = "";
-                }
+                eventDelayAPI.setDelay((int) secondsUntil);
+                checkWarnings();
             }
         };
-        task.runTaskTimerAsynchronously(plugin, 0, 20);
+        task.runTaskTimerAsynchronously(plugin, 0, 20L);
+        startingTimer = task;
     }
 
+    private void calculateNextEventTime() {
+        long now = System.currentTimeMillis() / 1000;
+        nextEventTime = Long.MAX_VALUE;
 
-    private int getSecondsUntilNextTimezoneEvent() {
-        LocalTime now = LocalTime.now(zoneId);
-        int minSeconds = Integer.MAX_VALUE;
-
-        for (String timeString : timezoneEvents.keySet()) {
-            LocalTime eventTime = LocalTime.parse(timeString, timeFormatter);
-            int seconds = (int) java.time.Duration.between(now, eventTime).getSeconds();
-
-            if (seconds < 0) {
-                seconds += 24 * 60 * 60; // Если уже прошло, то переносим на следующий день
-            }
-
-            if (seconds < minSeconds) {
-                minSeconds = seconds;
+        for (String timeStr : timezoneEvents.keySet()) {
+            long eventTime = parseTimeString(timeStr);
+            if (eventTime > now && eventTime < nextEventTime) {
+                nextEventTime = eventTime;
             }
         }
 
-        return minSeconds == Integer.MAX_VALUE ? 0 : minSeconds;
+        if (nextEventTime == Long.MAX_VALUE && !timezoneEvents.isEmpty()) {
+            String firstTime = timezoneEvents.keySet().iterator().next();
+            nextEventTime = parseTimeString(firstTime) + 86400;
+        }
+    }
+
+    private long parseTimeString(String timeStr) {
+        String[] parts = timeStr.split(":");
+        if (parts.length < 2) {
+            return Long.MAX_VALUE;
+        }
+        int hour = Integer.parseInt(parts[0]);
+        int minute = Integer.parseInt(parts[1]);
+
+        ZonedDateTime now = ZonedDateTime.now(zoneId);
+        ZonedDateTime next = now.withHour(hour)
+                .withMinute(minute)
+                .withSecond(0)
+                .truncatedTo(ChronoUnit.SECONDS);
+
+        if (next.isBefore(now)) {
+            next = next.plusDays(1);
+        }
+
+        return next.toEpochSecond();
     }
 
     public void startDuration(String eventName, int duration) {
-        if (durationTimer!=null) {
+        if (durationTimer != null) {
             durationTimer.cancel();
         }
         eventDelayAPI.setDuration(duration);
@@ -184,15 +198,15 @@ public class Timer {
                 }
             }
         };
-        task.runTaskTimerAsynchronously(plugin, 0, 20);
+        task.runTaskTimerAsynchronously(plugin, 0, 20L);
         durationTimer = task;
     }
 
     public void Activate() {
-        if (activationTimer!=null) {
+        if (activationTimer != null) {
             activationTimer.cancel();
         }
-        eventDelayAPI.setOpeningTimer(CFG().getInt("Events." + eventDelayAPI.getNowEvent() + ".ActivationTime", 120));  // Устанавливаем начальное время для ивента
+        eventDelayAPI.setOpeningTimer(CFG().getInt("Events." + eventDelayAPI.getNowEvent() + ".ActivationTime", 120));
         eventDelayAPI.setActivationStatus("true");
         BukkitRunnable task = new BukkitRunnable() {
             @Override
@@ -209,7 +223,7 @@ public class Timer {
                 }
             }
         };
-        task.runTaskTimerAsynchronously(plugin, 0, 20);
+        task.runTaskTimerAsynchronously(plugin, 0, 20L);
         activationTimer = task;
     }
 }
