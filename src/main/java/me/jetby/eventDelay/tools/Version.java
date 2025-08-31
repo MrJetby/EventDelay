@@ -20,6 +20,7 @@ public class Version implements Listener {
     private final String UPDATE = "https://raw.githubusercontent.com/MrJetby/EventDelay/refs/heads/master/UPDATE_LINK";
 
 
+
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
         Player player = e.getPlayer();
