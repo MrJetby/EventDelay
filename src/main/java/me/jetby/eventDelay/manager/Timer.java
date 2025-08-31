@@ -16,8 +16,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static me.jetby.eventDelay.configurations.Config.CFG;
-import static me.jetby.eventDelay.manager.Assistants.getNextEventPrefix;
 
 public class Timer {
 
@@ -41,10 +39,10 @@ public class Timer {
     private static long nextEventTime = 0;
 
     public void initialize() {
-        String timezone = CFG().getString("TimeZone", "GMT+3").replace("UTC", "GMT");
+        String timezone = plugin.getCfg().getTimerZone();
         zoneId = ZoneId.of(timezone);
-        if (CFG().getString("TimerType", "DEFAULT").equalsIgnoreCase("TIMEZONE")) {
-            for (String timeEntry : CFG().getStringList("TimeZones")) {
+        if (plugin.getCfg().getTimerType().equalsIgnoreCase("TIMEZONE")) {
+            for (String timeEntry : plugin.getCfg().getTimerZones()) {
                 String[] parts = timeEntry.split(";");
                 String time = parts[0].trim();
                 String event = parts.length > 1 ? parts[1].trim() : null;
@@ -54,8 +52,8 @@ public class Timer {
     }
 
     public void startTimer() {
-        String timerType = CFG().getString("TimerType", "DEFAULT");
-        int timer = CFG().getInt("Timer", 1800);
+        String timerType = plugin.getCfg().getTimerType();
+        int timer = plugin.getCfg().getTimer();
         if (timerType.equalsIgnoreCase("TIMEZONE")) {
             startTimezoneTimer();
         } else {
@@ -81,7 +79,9 @@ public class Timer {
                     }
                     checkWarnings();
                 } else {
-                    triggers.triggerNextEvent();
+                    if (!plugin.getAssistants().isEventActive()) {
+                        triggers.triggerNextEvent();
+                    }
                     eventDelayAPI.setDelay(timer);
                 }
             }
@@ -92,50 +92,65 @@ public class Timer {
 
     private void checkWarnings() {
         if (!eventDelayAPI.getNextEvent().equalsIgnoreCase("none")) {
-            List<Integer> warnTimes = CFG().getIntegerList("Events." + eventDelayAPI.getNextEvent() + ".warns.time");
-            List<String> warnActions = CFG().getStringList("Events." + eventDelayAPI.getNextEvent() + ".warns.warnActions");
+            List<Integer> warnTimes = plugin.getCfg().getEvents().get(eventDelayAPI.getNextEvent()).getWarnTimes();
+            List<String> warnActions = plugin.getCfg().getEvents().get(eventDelayAPI.getNextEvent()).getWarnActions();
             warnActions.replaceAll(s -> s
-                    .replace("{prefix}", getNextEventPrefix(eventDelayAPI))
+                    .replace("{prefix}", plugin.getAssistants().getNextEventPrefix())
                     .replace("{time_to_start}", String.valueOf(eventDelayAPI.getDelay()))
             );
             if (warnTimes.contains(eventDelayAPI.getDelay())) {
-                for (Player player : Bukkit.getOnlinePlayers()) {
-                    Actions.execute(plugin, player, warnActions);
-                }
+                Actions.execute(plugin, warnActions);
             }
         }
     }
 
     private void startTimezoneTimer() {
-        calculateNextEventTime();
-        int secondsUntilNextEvent = (int) (nextEventTime - System.currentTimeMillis() / 1000);
-        eventDelayAPI.setDelay(secondsUntilNextEvent);
+        if (startingTimer != null) {
+            startingTimer.cancel();
+        }
 
-        BukkitRunnable task = new BukkitRunnable() {
+        startingTimer = new BukkitRunnable() {
             @Override
             public void run() {
-                long currentTime = System.currentTimeMillis() / 1000;
-                long secondsUntil = nextEventTime - currentTime;
+                calculateNextEventTime();
+                long nowMillis = System.currentTimeMillis();
+                long remainingMillis = (nextEventTime * 1000L) - nowMillis;
+                int remainingSeconds = (int) (remainingMillis / 1000);
 
-                if (secondsUntil == 1) {
+                eventDelayAPI.setDelay(remainingSeconds);
+
+                if (remainingSeconds <= 0) {
                     if (Bukkit.getOnlinePlayers().size() >= eventDelayAPI.getMinPlayers()) {
-                        String currentTimeStr = LocalTime.now(zoneId).format(timeFormatter);
-                        String forcedEvent = timezoneEvents.get(currentTimeStr);
-                        if (forcedEvent != null && !forcedEvent.isEmpty()) {
-                            eventDelayAPI.setNextEvent(forcedEvent);
-                        }
-                        triggers.triggerNextEvent();
-                        calculateNextEventTime();
-                    }
-                }
+                        if (!plugin.getAssistants().isEventActive()) {
+                            String currentTimeStr = LocalTime.now(zoneId).format(timeFormatter);
+                            String eventSpec = timezoneEvents.get(currentTimeStr);
 
-                eventDelayAPI.setDelay((int) secondsUntil);
-                checkWarnings();
+                            if (eventSpec != null && !eventSpec.isEmpty()) {
+                                if (eventSpec.startsWith("$rand_group")) {
+                                    plugin.getAssistants().createRandomEventFromRandomGroup();
+                                } else if (plugin.getCfg().getGroups().containsKey(eventSpec)) {
+                                    plugin.getAssistants().createRandomEventFromGroup(eventSpec);
+                                } else if (plugin.getCfg().getEvents().containsKey(eventSpec)) {
+                                    eventDelayAPI.setNextEvent(eventSpec);
+                                } else {
+                                    plugin.getAssistants().createNextRandomEvent();
+                                }
+                            } else {
+                                plugin.getAssistants().createNextRandomEvent();
+                            }
+
+                            triggers.triggerNextEvent();
+                        }
+                    }
+                    calculateNextEventTime();
+                } else {
+                    checkWarnings();
+                }
             }
         };
-        task.runTaskTimerAsynchronously(plugin, 0, 20L);
-        startingTimer = task;
+        startingTimer.runTaskTimerAsynchronously(plugin, 0, 20L);
     }
+
 
     private void calculateNextEventTime() {
         long now = System.currentTimeMillis() / 1000;
@@ -188,10 +203,8 @@ public class Timer {
                 } else if (eventDelayAPI.getNowEvent().equalsIgnoreCase("none")) {
                     cancel();
                 } else {
-                    List<String> commands = CFG().getStringList("Events." + eventName + ".onEnd");
-                    for (Player player : Bukkit.getOnlinePlayers()) {
-                        Actions.execute(plugin, player, commands);
-                    }
+                    List<String> commands = plugin.getCfg().getEvents().get(eventName).getOnEnd();
+                    Actions.execute(plugin, commands);
                     eventDelayAPI.setPreviousEvent(eventDelayAPI.getNowEvent());
                     eventDelayAPI.setNowEvent("none");
                     cancel();
@@ -206,7 +219,7 @@ public class Timer {
         if (activationTimer != null) {
             activationTimer.cancel();
         }
-        eventDelayAPI.setOpeningTimer(CFG().getInt("Events." + eventDelayAPI.getNowEvent() + ".ActivationTime", 120));
+        eventDelayAPI.setOpeningTimer(plugin.getCfg().getEvents().get(eventDelayAPI.getNowEvent()).getActivationTime());
         eventDelayAPI.setActivationStatus("true");
         BukkitRunnable task = new BukkitRunnable() {
             @Override
@@ -214,10 +227,8 @@ public class Timer {
                 if (eventDelayAPI.getOpeningTimer() > 0) {
                     eventDelayAPI.setOpeningTimer(eventDelayAPI.getOpeningTimer() - 1);
                 } else {
-                    List<String> onActivated = CFG().getStringList("Events." + eventDelayAPI.getNowEvent() + ".onActivated");
-                    for (Player player : Bukkit.getOnlinePlayers()) {
-                        Actions.execute(plugin, player, onActivated);
-                    }
+                    List<String> onActivated = plugin.getCfg().getEvents().get(eventDelayAPI.getNowEvent()).getOnActivated();
+                    Actions.execute(plugin, onActivated);
                     eventDelayAPI.setActivationStatus("opened");
                     cancel();
                 }

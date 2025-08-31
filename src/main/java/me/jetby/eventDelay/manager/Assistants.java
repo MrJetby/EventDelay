@@ -1,89 +1,157 @@
 package me.jetby.eventDelay.manager;
 
 
+import me.jetby.eventDelay.Main;
+import me.jetby.eventDelay.configurations.Messages;
+import me.jetby.eventDelay.constructor.Events;
+import me.jetby.eventDelay.constructor.Groups;
 import me.jetby.eventDelay.tools.EventDelayAPI;
-import org.bukkit.configuration.ConfigurationSection;
+import me.jetby.eventDelay.tools.Logger;
+import org.bukkit.Bukkit;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 
-import static me.jetby.eventDelay.configurations.Config.CFG;
-import static me.jetby.eventDelay.configurations.Messages.MSG;
+import static me.jetby.eventDelay.tools.Color.hex;
+
 
 public class Assistants {
 
-    // Делаем это единожды для оптимизации
-    private static final Random random = new Random();
+    private final Random random = new Random();
 
-    public static String getRandomEvent() {
-        List<String> events = CFG().getConfigurationSection("Events").getKeys(false).stream().toList();
-        Map<String, Integer> eventChances = new HashMap<>();
-        int totalWeight = 0;
+    private final Main plugin;
+    private final EventDelayAPI eventDelayAPI;
+    private final Messages messages;
+    public Assistants(Main plugin, EventDelayAPI eventDelayAPI) {
+        this.plugin = plugin;
+        this.eventDelayAPI = eventDelayAPI;
+        this.messages = plugin.getMessages();
+    }
 
-        for (String event : events) {
-            int chance = CFG().getInt("Events." + event + ".Chance", 100);
-            eventChances.put(event, chance);
-            totalWeight += chance;
+    public void createNextRandomEvent() {
+        if (eventDelayAPI.getNextEvent().equalsIgnoreCase("none")) {
+            String nextEvent;
+            Map<String, Integer> eventChances = new HashMap<>();
+            int totalWeight = 0;
+            int onlinePlayers = Bukkit.getOnlinePlayers().size();
+
+            for (String id : plugin.getCfg().getEvents().keySet()) {
+                Events event = plugin.getCfg().getEvents().get(id);
+                if (event.getMinPlayers() <= onlinePlayers) {
+                    eventChances.put(id, event.getChance());
+                    totalWeight += event.getChance();
+                }
+            }
+            if (totalWeight > 0) {
+                int randomValue = random.nextInt(totalWeight) + 1;
+                int currentWeight = 0;
+
+                for (Map.Entry<String, Integer> entry : eventChances.entrySet()) {
+                    currentWeight += entry.getValue();
+                    if (randomValue <= currentWeight) {
+                        nextEvent = entry.getKey();
+                        eventDelayAPI.setNextEvent(nextEvent);
+                        return;
+                    }
+                }
+            }
+            List<Events> allEvents = new ArrayList<>();
+            for (String id : plugin.getCfg().getEvents().keySet()) {
+                allEvents.add(plugin.getCfg().getEvents().get(id));
+            }
+
+            if (allEvents.isEmpty()) {
+                List<Events> list = new ArrayList<>(plugin.getCfg().getEvents().values());
+                if (list.isEmpty()) {
+                    Logger.error("[EventDelay] Не найдено ни одного события для выбора!");
+                    return;
+                }
+                nextEvent = list.get(random.nextInt(list.size())).getId();
+                eventDelayAPI.setNextEvent(nextEvent);
+            }
+
+        }
+
+    }
+    public void createRandomEventFromGroup(String groupId) {
+        Groups group = plugin.getCfg().getGroups().get(groupId);
+        if (group == null || group.events().isEmpty()) {
+            createNextRandomEvent();
+            return;
+        }
+
+        String randomEvent = group.events().get(random.nextInt(group.events().size()));
+        eventDelayAPI.setNextEvent(randomEvent);
+    }
+
+    public void createRandomEventFromRandomGroup() {
+        if (plugin.getCfg().getGroups().isEmpty()) {
+            createNextRandomEvent();
+            return;
+        }
+
+        int totalWeight = plugin.getCfg().getGroups().values().stream()
+                .mapToInt(Groups::chance)
+                .sum();
+
+        if (totalWeight <= 0) {
+            createNextRandomEvent();
+            return;
         }
 
         int randomValue = random.nextInt(totalWeight) + 1;
-
         int currentWeight = 0;
-        for (Map.Entry<String, Integer> entry : eventChances.entrySet()) {
-            currentWeight += entry.getValue();
+
+        for (Groups group : plugin.getCfg().getGroups().values()) {
+            currentWeight += group.chance();
             if (randomValue <= currentWeight) {
-                return entry.getKey();
+                createRandomEventFromGroup(group.id());
+                return;
             }
         }
 
-        return events.get(random.nextInt(events.size()));
+        createNextRandomEvent();
     }
-
-
-    public static boolean isEventActive(EventDelayAPI eventDelayAPI) {
+    public boolean isEventActive() {
         return !eventDelayAPI.getNowEvent().equalsIgnoreCase("none");
     }
 
-    public static String getPreviousEventPrefix(EventDelayAPI eventDelayAPI) {
+    public String getPreviousEventPrefix() {
         if (!eventDelayAPI.getPreviousEvent().equalsIgnoreCase("none")) {
-            return CFG().getString("Events." + eventDelayAPI.getPreviousEvent() + ".Prefix");
+            return hex(plugin.getCfg().getEvents().get(eventDelayAPI.getPreviousEvent()).getPrefix());
         }
         return "none";
     }
 
-    public static String getNowEventPrefix(EventDelayAPI eventDelayAPI) {
+    public String getNowEventPrefix() {
         if (!eventDelayAPI.getNowEvent().equalsIgnoreCase("none")) {
-            return CFG().getString("Events." + eventDelayAPI.getNowEvent() + ".Prefix");
+            return hex(plugin.getCfg().getEvents().get(eventDelayAPI.getNowEvent()).getPrefix());
         }
         return "none";
     }
 
-    public static String getNextEventPrefix(EventDelayAPI eventDelayAPI) {
+    public String getNextEventPrefix() {
         if (!eventDelayAPI.getNextEvent().equalsIgnoreCase("none")) {
-            return CFG().getString("Events." + eventDelayAPI.getNextEvent() + ".Prefix");
+            return hex(plugin.getCfg().getEvents().get(eventDelayAPI.getNextEvent()).getPrefix());
         }
         return "none";
     }
 
 
-    public static boolean isCompass(EventDelayAPI eventDelayAPI) {
+    public boolean isCompass() {
         if (!eventDelayAPI.getNowEvent().equalsIgnoreCase("none")) {
-            return CFG().getBoolean("Events." + eventDelayAPI.getNowEvent() + ".compass", false);
+            return plugin.getCfg().getEvents().get(eventDelayAPI.getNowEvent()).isCompass();
         }
         return false;
     }
 
-    public static String activeStatus(EventDelayAPI eventDelayAPI) {
+    public String activeStatus() {
         String check = eventDelayAPI.getActivationStatus();
-        ConfigurationSection openingTime = MSG().getConfigurationSection("OpeningTime");
         if (check.equals("true")) {
-            return openingTime.getString("start").replace("{time_to_open}", Integer.toString(eventDelayAPI.getOpeningTimer()));
+            return messages.getStart().replace("{time_to_open}", Integer.toString(eventDelayAPI.getOpeningTimer()));
         }
         if (check.equalsIgnoreCase("opened")) {
-            return openingTime.getString("end");
+            return messages.getEnd();
         }
-        return openingTime.getString("none");
+        return messages.getNone();
     }
 }

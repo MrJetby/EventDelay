@@ -1,31 +1,25 @@
 package me.jetby.eventDelay.manager;
 
 import me.jetby.eventDelay.Main;
+import me.jetby.eventDelay.constructor.Events;
 import me.jetby.eventDelay.tools.Actions;
 import me.jetby.eventDelay.tools.EventDelayAPI;
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
 
 import java.util.List;
-import java.util.Set;
-
-import static me.jetby.eventDelay.configurations.Config.CFG;
-import static me.jetby.eventDelay.manager.Assistants.getRandomEvent;
+import java.util.Random;
 
 public class Triggers {
 
     private final Main plugin;
     private final EventDelayAPI eventDelayAPI;
+    private final Assistants assistants;
+
+    private final Random RANDOM = new Random();
 
     public Triggers(Main plugin) {
         this.plugin = plugin;
         this.eventDelayAPI = plugin.getEventDelayAPI();
-    }
-
-    public void nextRandomEvent() {
-        if (eventDelayAPI.getNextEvent().equalsIgnoreCase("none")) {
-            eventDelayAPI.setNextEvent(getRandomEvent());
-        }
+        this.assistants = plugin.getAssistants();
     }
 
     public void startRandomEvent() {
@@ -36,17 +30,18 @@ public class Triggers {
             eventDelayAPI.setNowEvent(eventDelayAPI.getNextEvent());
         }
 
-        eventDelayAPI.setNextEvent(getRandomEvent());
+        assistants.createNextRandomEvent();
         triggerEvent(eventDelayAPI.getNowEvent());
     }
+
     public void startEvent(String eventName) {
-        if (eventDelayAPI.getNowEvent().equalsIgnoreCase("none")) {
-            eventDelayAPI.setNowEvent(eventName);
-            stopEvent(eventDelayAPI.getNowEvent());
-            eventDelayAPI.setNowEvent(eventName);
-            eventDelayAPI.setNextEvent(getRandomEvent());
-            triggerEvent(eventName);
+        if (!eventDelayAPI.getNowEvent().equalsIgnoreCase("none")) {
+            stopEvent(eventName);
         }
+        eventDelayAPI.setNowEvent(eventName);
+        eventDelayAPI.setNowEvent(eventName);
+        assistants.createNextRandomEvent();
+        triggerEvent(eventName);
     }
 
 
@@ -55,21 +50,37 @@ public class Triggers {
             return;
         }
 
-        eventDelayAPI.setOpeningTimer(CFG().getInt("Events." + eventName + ".Duration"));
-        List<String> commands = CFG().getStringList("Events." + eventName + ".onEnd");
+        Events event = plugin.getCfg().getEvents().get(eventName);
 
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            Actions.execute(plugin, player, commands);
-        }
+        eventDelayAPI.setOpeningTimer(event.getDuration());
+
+        Actions.execute(plugin, event.getOnEnd());
+
         eventDelayAPI.setPreviousEvent(eventDelayAPI.getNowEvent());
         eventDelayAPI.setNowEvent("none");
-        eventDelayAPI.setNextEvent(getRandomEvent());
+        assistants.createNextRandomEvent();
 
     }
 
     public void triggerNextEvent() {
         if (eventDelayAPI.getNextEvent().equalsIgnoreCase("none")) {
-            eventDelayAPI.setNextEvent(getRandomEvent());
+            String timerValue = plugin.getCfg().getTimeValue();
+
+            if (timerValue != null && timerValue.contains(";")) {
+                String eventSpec = timerValue.split(";")[1].trim();
+
+                if (eventSpec.equals("$rand_group")) {
+                    plugin.getAssistants().createRandomEventFromRandomGroup();
+                } else if (plugin.getCfg().getGroups().containsKey(eventSpec)) {
+                    plugin.getAssistants().createRandomEventFromGroup(eventSpec);
+                } else if (plugin.getCfg().getEvents().containsKey(eventSpec)) {
+                    eventDelayAPI.setNextEvent(eventSpec);
+                } else {
+                    plugin.getAssistants().createNextRandomEvent();
+                }
+            } else {
+                plugin.getAssistants().createNextRandomEvent();
+            }
         }
 
         eventDelayAPI.setNowEvent(eventDelayAPI.getNextEvent());
@@ -78,36 +89,27 @@ public class Triggers {
 
         triggerEvent(eventDelayAPI.getNowEvent());
 
-        // Only reset timer if in DEFAULT mode
-        if (CFG().getString("TimerType", "DEFAULT").equalsIgnoreCase("DEFAULT")) {
-            eventDelayAPI.setDelay(CFG().getInt("Timer", 1800));
+        if (plugin.getCfg().getTimerType().equalsIgnoreCase("DEFAULT")) {
+            eventDelayAPI.setDelay(plugin.getCfg().getTimer());
         }
     }
 
     public void triggerEvent(String eventName) {
-        eventDelayAPI.setOpeningTimer(CFG().getInt("Events." + eventName + ".Duration"));
+        Events event = plugin.getCfg().getEvents().get(eventName);
 
-        List<String> defaultCommands = CFG().getStringList("Events." + eventName + ".onStart.default");
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            Actions.execute(plugin, player, defaultCommands);
+        eventDelayAPI.setOpeningTimer(event.getDuration());
+
+        if (!event.getOnStartDefault().isEmpty()) {
+            Actions.execute(plugin, event.getOnStartDefault());
         }
-        if (CFG().contains("Events." + eventName + ".onStart.random")) {
-            Set<String> sections = CFG().getConfigurationSection("Events." + eventName + ".onStart.random").getKeys(false);
-            if (!sections.isEmpty()) {
-                String randomSection = sections.stream()
-                        .skip((int) (Math.random() * sections.size()))
-                        .findFirst()
-                        .orElse(null);
+        if (!event.getOnStartRandom().isEmpty()) {
+            int randomNumber = RANDOM.nextInt(event.getOnStartRandom().size());
 
-                if (randomSection != null) {
-                    List<String> randomCommands = CFG().getStringList("Events." + eventName + ".onStart.random." + randomSection);
-                    for (Player player : Bukkit.getOnlinePlayers()) {
-                        Actions.execute(plugin, player, randomCommands);
-                    }
-                }
-            }
-        }
+            List<String> randomActions = event.getOnStartRandom().get(randomNumber);
 
+            Actions.execute(plugin, randomActions);
+
+    }
 
         plugin.getTimer().startDuration(eventDelayAPI.getNowEvent(), eventDelayAPI.getOpeningTimer());
     }

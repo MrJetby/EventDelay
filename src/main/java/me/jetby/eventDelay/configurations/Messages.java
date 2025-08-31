@@ -1,54 +1,61 @@
 package me.jetby.eventDelay.configurations;
 
-import org.bukkit.Bukkit;
-import org.bukkit.configuration.InvalidConfigurationException;
+
+import lombok.Getter;
+import me.jetby.eventDelay.Main;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.plugin.Plugin;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.logging.Level;
+import java.util.List;
 
+import static me.jetby.eventDelay.tools.Color.hex;
+
+@Getter
 public class Messages {
 
-    private static FileConfiguration config;
-    private static File file;
-
-    public void loadYamlFile(Plugin plugin) {
-        file = new File(plugin.getDataFolder(), "messages.yml");
-        if (!file.exists()) {
-            plugin.getDataFolder().mkdirs();
-            plugin.saveResource("messages.yml", true);
-        }
-
-        config = YamlConfiguration.loadConfiguration(file);
+    private final Main plugin;
+    public Messages(Main plugin) {
+        this.plugin = plugin;
     }
 
-    public static FileConfiguration MSG() {
-        return config;
+    private List<String> time;
+    private List<String> active;
+    private List<String> noPlayers;
+    private List<String> info;
+
+    private String noPerm;
+    private String tp_cooldown;
+    private String reload;
+    private List<String> usage;
+
+    private String noItem;
+    private String disabled;
+    private String success;
+
+    private String none;
+    private String start;
+    private String end;
+
+    public void load(FileConfiguration configuration) {
+
+        time = hex(configuration.getStringList("delay.time"));
+        active = hex(configuration.getStringList("delay.active"));
+        noPlayers = hex(configuration.getStringList("delay.noPlayers"));
+        info = hex(configuration.getStringList("delay.info"));
+
+        noItem = hex(configuration.getString("compass.noItem", "&c[✘] &fДля этой функции на руках должен быть компас."));
+        disabled = hex(configuration.getString("compass.disabled", "&c[✘] &fКомпас отключён для этого ивента."));
+        success = hex(configuration.getString("compass.success", "&a[✔] &fТеперь компас будет направлять на ивент."));
+
+        none = hex(configuration.getString("OpeningTime.none", "&fЖдёт активации."));
+        start = hex(configuration.getString("OpeningTime.start", "&fАктивация. До открытия &6{time_to_open}&f сек."));
+        end = hex(configuration.getString("OpeningTime.end", "&aДоступ открыт."));
+
+
+        reload = hex(configuration.getString("messages.reload"));
+        noPerm = hex(configuration.getString("messages.noPerm"));
+        tp_cooldown = hex(configuration.getString("messages.tp_cooldown"));
+        usage = hex(configuration.getStringList("messages.usage"));
     }
 
-    public void reloadCfg(Plugin plugin) {
-        if (!file.exists()) {
-            plugin.getDataFolder().mkdirs();
-            plugin.saveResource("messages.yml", true);
-        }
-        try {
-            config.load(file);
-            Bukkit.getConsoleSender().sendMessage("Конфигурация перезагружена! (messages.yml)");
-        } catch (IOException | InvalidConfigurationException e) {
-            Bukkit.getConsoleSender().sendMessage("Не удалось перезагрузить конфигурацию! (messages.yml)");
-        }
-    }
-
-    public void saveCfg(Plugin plugin) {
-        try {
-            File file = new File(plugin.getDataFolder(), "messages.yml");
-            config.save(file);
-        } catch (IOException e) {
-            Bukkit.getLogger().log(Level.SEVERE, "Не удалось сохранить файл messages.yml", e);
-        }
-    }
 }
 

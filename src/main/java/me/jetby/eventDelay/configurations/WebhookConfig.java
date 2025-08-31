@@ -1,55 +1,116 @@
 package me.jetby.eventDelay.configurations;
 
-import org.bukkit.Bukkit;
-import org.bukkit.configuration.InvalidConfigurationException;
+
+import lombok.Getter;
+import me.jetby.eventDelay.Main;
+import me.jetby.eventDelay.constructor.Webhook;
+import me.jetby.eventDelay.tools.Logger;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.plugin.Plugin;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.logging.Level;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-import static org.bukkit.Bukkit.getLogger;
+import static me.jetby.eventDelay.tools.Color.setPlaceholders;
+import static me.jetby.eventDelay.tools.FormatTimer.stringFormat;
 
+@Getter
 public class WebhookConfig {
 
-    private static FileConfiguration config;
-    private static File file;
+    private final Main plugin;
+    public WebhookConfig(Main plugin) {
+        this.plugin = plugin;
+    }
+    private final Map<String, Webhook> webhooks = new HashMap<>();
 
-    public void loadYamlFile(Plugin plugin) {
-        file = new File(plugin.getDataFolder(), "webhook.yml");
-        if (!file.exists()) {
-            plugin.getDataFolder().mkdirs();
-            plugin.saveResource("webhook.yml", true);
+    public void load(FileConfiguration configuration) {
+        webhooks.clear();
+        ConfigurationSection webhooksSection = configuration.getConfigurationSection("webhooks");
+        for (String id : webhooksSection.getKeys(false)) {
+
+            ConfigurationSection section = webhooksSection.getConfigurationSection(id);
+
+            if (section==null) {
+                Logger.error("Секция 'Events."+id+"' не найдена");
+                continue;
+            }
+
+            Webhook webhook = new Webhook(
+                    id,
+                    section.getString("Url"),
+                    section.getString("Avatar"),
+                    section.getString("Username"),
+                    section.getString("color"),
+                    section.getString("title"),
+                    section.getString("text", ""),
+                    section.getStringList("embedText"));
+
+            webhooks.put(id, webhook);
         }
-
-        config = YamlConfiguration.loadConfiguration(file);
     }
 
-    public static FileConfiguration WH() {
-        return config;
-    }
 
-    public void reloadCfg(Plugin plugin) {
-        if (!file.exists()) {
-            plugin.getDataFolder().mkdirs();
-            plugin.saveResource("webhook.yml", true);
-        }
+    public void sendToDiscord(Webhook webhook) {
         try {
-            config.load(file);
-            Bukkit.getConsoleSender().sendMessage("Конфигурация перезагружена! (webhook.yml)");
-        } catch (IOException | InvalidConfigurationException e) {
-            Bukkit.getConsoleSender().sendMessage("Не удалось перезагрузить конфигурацию! (webhook.yml)");
-        }
-    }
+            URL url = new URL(webhook.getUrl());
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
-    public void saveCfg(Plugin plugin) {
-        try {
-            File file = new File(plugin.getDataFolder(), "webhook.yml");
-            config.save(file);
-        } catch (IOException e) {
-            getLogger().log(Level.SEVERE, "Не удалось сохранить файл webhook.yml", e);
+            connection.setRequestMethod("POST");
+            connection.setDoOutput(true);
+            connection.setRequestProperty("Content-Type", "application/json");
+
+            int decimalColor = Integer.parseInt(webhook.getColor().replace("#", ""), 16);
+
+            StringBuilder descriptionBuilder = new StringBuilder();
+            for (String text : webhook.getEmbedText()) {
+                descriptionBuilder.append(text).append("\\n");
+            }
+
+
+            String title = setPlaceholders(webhook.getTitle().replace("{prefix}", plugin.getAssistants().getNowEventPrefix())
+                    .replace("{duration}", String.valueOf(plugin.getEventDelayAPI().getDuration()))
+                    .replace("{duration_string}", stringFormat(plugin.getEventDelayAPI().getDuration()))
+                    .replace("{active_status}", plugin.getAssistants().activeStatus()), null);
+
+            String text = setPlaceholders(webhook.getText().replace("{prefix}", plugin.getAssistants().getNowEventPrefix())
+                    .replace("{duration}", String.valueOf(plugin.getEventDelayAPI().getDuration()))
+                    .replace("{duration_string}", stringFormat(plugin.getEventDelayAPI().getDuration()))
+                    .replace("{active_status}", plugin.getAssistants().activeStatus()), null);
+
+            String json = """
+                {
+                  "username": "%s",
+                  "avatar_url": "%s",
+                  "content": "%s",
+                  "embeds": [{
+                    "title": "%s",
+                    "description": "%s",
+                    "color": %d
+                  }]
+                }
+                """.formatted(webhook.getUsername(),
+                    webhook.getAvatar(),
+                    text,
+                    title,
+                    descriptionBuilder.toString(),
+                    decimalColor);
+
+            try (OutputStream os = connection.getOutputStream()) {
+                os.write(json.getBytes());
+                os.flush();
+            }
+
+            int responseCode = connection.getResponseCode();
+            if (responseCode != 204) {
+                Logger.warn("Ошибка отправки webhook: " + responseCode);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }

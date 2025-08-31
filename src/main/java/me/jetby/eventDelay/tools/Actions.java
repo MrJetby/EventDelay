@@ -1,6 +1,8 @@
 package me.jetby.eventDelay.tools;
 
 import me.jetby.eventDelay.Main;
+import me.jetby.eventDelay.constructor.Events;
+import me.jetby.eventDelay.constructor.Webhook;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.HoverEvent;
@@ -10,22 +12,14 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.World;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
 import java.util.*;
 
-import static me.jetby.eventDelay.configurations.Config.CFG;
-import static me.jetby.eventDelay.configurations.Messages.MSG;
-import static me.jetby.eventDelay.configurations.WebhookConfig.WH;
-import static me.jetby.eventDelay.manager.Assistants.activeStatus;
-import static me.jetby.eventDelay.manager.Assistants.getNowEventPrefix;
 import static me.jetby.eventDelay.tools.Color.hex;
 import static me.jetby.eventDelay.tools.Color.setPlaceholders;
-import static me.jetby.eventDelay.tools.FormatTimer.stringFormat;
-import static me.jetby.eventDelay.tools.Webhook.sendToDiscord;
 
 public class Actions {
 
@@ -34,11 +28,11 @@ public class Actions {
     private static int teleportRadius = 10;
     private static int teleportCooldown = 15;
 
-    public static void execute(Main plugin, Player sender, List<String> commands) {
-        executeWithDelay(plugin, sender, commands, 0);
+    public static void execute(Main plugin,List<String> commands) {
+        executeWithDelay(plugin, commands, 0);
     }
 
-    private static void executeWithDelay(Main plugin, Player player, List<String> commands, int index) {
+    private static void executeWithDelay(Main plugin,List<String> commands, int index) {
         if (index >= commands.size()) return;
 
         String command = commands.get(index);
@@ -47,7 +41,7 @@ public class Actions {
 
         if (args[0].equalsIgnoreCase("[DELAY]")) {
             int delayTicks = Integer.parseInt(args[1]);
-            Bukkit.getScheduler().runTaskLater(plugin, () -> executeWithDelay(plugin, player, commands, index + 1), delayTicks);
+            Bukkit.getScheduler().runTaskLater(plugin, () -> executeWithDelay(plugin, commands, index + 1), delayTicks);
             return;
         }
 
@@ -70,7 +64,9 @@ public class Actions {
             }
             String[] buttonParams = withoutCMD.split(";", 2);
             if (buttonParams.length < 2) {
-                player.sendMessage(hex("&cОшибка формата: используйте [TELEPORT_BUTTON=радиус] текст;подсказка"));
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    player.sendMessage(hex("&cОшибка формата: используйте [TELEPORT_BUTTON=радиус] текст;подсказка"));
+                }
                 return;
             }
             teleportCooldown = cooldownSeconds;
@@ -79,8 +75,10 @@ public class Actions {
             msg.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/event teleport"));
             msg.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(hex(buttonParams[1].replace("--cooldown:" + cooldownSeconds, "").trim()))));
 
-            player.spigot().sendMessage(ChatMessageType.CHAT, msg);
-            executeWithDelay(plugin, player, commands, index + 1);
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                player.spigot().sendMessage(ChatMessageType.CHAT, msg);
+            }
+            executeWithDelay(plugin,commands, index + 1);
             return;
         }
 
@@ -103,16 +101,20 @@ public class Actions {
                         Double.parseDouble(params[2].trim()),
                         Double.parseDouble(params[3].trim())
                 );
-                teleportNear(plugin, player, center, radius, 0);
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    teleportNear(plugin, player, center, radius, 0);
+                }
             } catch (NumberFormatException ignored) {
             }
-            executeWithDelay(plugin, player, commands, index + 1);
+            executeWithDelay(plugin,commands, index + 1);
             return;
         }
 
         switch (args[0].toUpperCase()) {
             case "[MESSAGE]", "[MSG]", "[MESSAGE_ALL]": {
-                player.sendMessage(hex(withoutCMD, player));
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    player.sendMessage(hex(withoutCMD, player));
+                }
                 break;
             }
             case "[TELEPORT]", "[TP]": {
@@ -131,7 +133,9 @@ public class Actions {
                         }
 
                         Location location = new Location(world, x, y, z);
-                        player.teleport(location);
+                        for (Player player : Bukkit.getOnlinePlayers()) {
+                            player.teleport(location);
+                        }
 
                     } catch (NumberFormatException e) {
                         Bukkit.getLogger().warning("Ошибка парсинга координат");
@@ -156,7 +160,9 @@ public class Actions {
                         Location location = new Location(world, x, y, z, yaw, pitch);
 
                         Bukkit.getScheduler().runTask(plugin, ()-> {
-                            player.teleport(location);
+                            for (Player player : Bukkit.getOnlinePlayers()) {
+                                player.teleport(location);
+                            }
                         });
 
                     } catch (NumberFormatException e) {
@@ -172,7 +178,9 @@ public class Actions {
             case "[PLAYER]": {
                 String finalWithoutCMD = withoutCMD;
                 Bukkit.getScheduler().runTask(plugin, ()-> {
-                    player.chat("/"+finalWithoutCMD.replace("%player%", player.getName()));
+                    for (Player player : Bukkit.getOnlinePlayers()) {
+                        player.chat("/"+finalWithoutCMD.replace("%player%", player.getName()));
+                    }
                 });
 
                 break;
@@ -180,41 +188,24 @@ public class Actions {
             case "[CONSOLE]": {
                 String finalWithoutCMD = withoutCMD;
                 Bukkit.getScheduler().runTask(plugin, ()-> {
-                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), hex(finalWithoutCMD.replace("%player%", player.getName()), player));
+                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), hex(finalWithoutCMD));
                 });
                 break;
             }
             case "[SEND_WEBHOOK]": {
-                ConfigurationSection webhookSection = WH().getConfigurationSection("webhooks." + withoutCMD);
-                List<String> lore = new ArrayList<>();
-                for (String l : webhookSection.getStringList("lore")) {
-                    l = l.replace("{prefix}", getNowEventPrefix(plugin.getEventDelayAPI()))
-                            .replace("{duration}", String.valueOf(plugin.getEventDelayAPI().getDuration()))
-                            .replace("{duration_string}", stringFormat(plugin.getEventDelayAPI().getDuration()))
-                            .replace("{active_status}", activeStatus(plugin.getEventDelayAPI()));
-                    l = setPlaceholders(l, null);
-                    lore.add(l);
-                }
-
-                if (WH().contains("webhooks." + withoutCMD)) {
-                    sendToDiscord(webhookSection.getString("Url"),
-                            webhookSection.getString("Username"),
-                            webhookSection.getString("Avatar"),
-                            webhookSection.getString("color"),
-                            webhookSection.getString("title")
-                                    .replace("{prefix}", getNowEventPrefix(plugin.getEventDelayAPI()))
-                                    .replace("{duration}", String.valueOf(plugin.getEventDelayAPI().getDuration()))
-                                    .replace("{duration_string}", stringFormat(plugin.getEventDelayAPI().getDuration()))
-                                    .replace("{active_status}", activeStatus(plugin.getEventDelayAPI())),
-                            lore
-                    );
-                }
+                String finalWithoutCMD = withoutCMD;
+                Bukkit.getScheduler().runTaskAsynchronously(plugin, ()-> {
+                    Webhook webhook = plugin.getWebhookConfig().getWebhooks().get(finalWithoutCMD);
+                    plugin.getWebhookConfig().sendToDiscord(webhook);
+                });
                 break;
             }
 
             case "[ACTIONBAR]": {
-                player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(hex(withoutCMD
-                        .replace("%player%", player.getName()), player)));
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(hex(withoutCMD
+                            .replace("%player%", player.getName()), player)));
+                }
                 break;
             }
             case "[SOUND]": {
@@ -228,7 +219,9 @@ public class Actions {
                     if (!arg.startsWith("-pitch:")) continue;
                     pitch = Float.parseFloat(arg.replace("-pitch:", ""));
                 }
-                player.playSound(player.getLocation(), Sound.valueOf(args[1]), volume, pitch);
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    player.playSound(player.getLocation(), Sound.valueOf(args[1]), volume, pitch);
+                }
                 break;
             }
             case "[EFFECT]": {
@@ -246,10 +239,12 @@ public class Actions {
                 if (effectType == null) {
                     return;
                 }
-                if (player.hasPotionEffect(effectType)) {
-                    return;
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    if (player.hasPotionEffect(effectType)) {
+                        continue;
+                    }
+                    player.addPotionEffect(new PotionEffect(effectType, duration * 20, strength));
                 }
-                player.addPotionEffect(new PotionEffect(effectType, duration * 20, strength));
                 break;
             }
             case "[TITLE]": {
@@ -280,10 +275,13 @@ public class Actions {
                         subTitle = message[1];
                     }
                 }
-                player.sendTitle(title, subTitle, fadeIn * 20, stay * 20, fadeOut * 20);
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    player.sendTitle(title, subTitle, fadeIn * 20, stay * 20, fadeOut * 20);
+                }
+
             }
         }
-        executeWithDelay(plugin, player, commands, index + 1);
+        executeWithDelay(plugin,commands, index + 1);
     }
 
     private static final Random random = new Random();
@@ -293,7 +291,8 @@ public class Actions {
             Long lastTeleport = teleportCooldowns.get(player.getUniqueId());
             if (lastTeleport != null && (System.currentTimeMillis() - lastTeleport) < cooldownSeconds * 1000L) {
                 int remaining = (int) (cooldownSeconds - (System.currentTimeMillis() - lastTeleport) / 1000);
-                player.sendMessage(hex(MSG().getString("messages.tp_cooldown").replace("{time}", String.valueOf(remaining)), player));
+                player.sendMessage(setPlaceholders(plugin.getMessages().getTp_cooldown()
+                        .replace("{time}", String.valueOf(remaining)), player));
                 return;
             }
         }
@@ -317,13 +316,18 @@ public class Actions {
     }
 
     public static void teleportButton(Main plugin, Player player, EventDelayAPI eventDelayAPI) {
-        ConfigurationSection coordinateSection = CFG().getConfigurationSection("Events." + eventDelayAPI.getNowEvent() + ".coordinates");
+        if (!plugin.getCfg().getEvents().get(eventDelayAPI.getNowEvent()).isCompass()) {
+            Logger.error("Кнопка телепорта не будет работать так как у вас отключён компас или отсутствуют корректные координаты в coordinates");
+            return;
+        }
 
-        World world = Bukkit.getWorld(coordinateSection.getString("world", "world"));
+        Events event = plugin.getCfg().getEvents().get(eventDelayAPI.getNowEvent());
 
-        String xString = hex(coordinateSection.getString("x", "0"), player);
-        String yString = hex(coordinateSection.getString("y", "0"), player);
-        String zString = hex(coordinateSection.getString("z", "0"), player);
+        World world = Bukkit.getWorld(event.getCoordinatesWorld());
+
+        String xString = hex(event.getCoordinatesX(), player);
+        String yString = hex(event.getCoordinatesY(), player);
+        String zString = hex(event.getCoordinatesZ(), player);
 
         int x = Integer.parseInt(xString);
         int y = Integer.parseInt(yString);
@@ -335,7 +339,8 @@ public class Actions {
             Long lastTeleport = teleportCooldowns.get(player.getUniqueId());
             if (lastTeleport != null && (System.currentTimeMillis() - lastTeleport) < teleportCooldown * 1000L) {
                 int remaining = (int) (teleportCooldown - (System.currentTimeMillis() - lastTeleport) / 1000);
-                player.sendMessage(hex(MSG().getString("messages.tp_cooldown").replace("{time}", String.valueOf(remaining)), player));
+                player.sendMessage(setPlaceholders(plugin.getMessages().getTp_cooldown()
+                        .replace("{time}", String.valueOf(remaining)), player));
                 return;
             }
         }

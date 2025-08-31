@@ -4,6 +4,8 @@ import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -11,6 +13,15 @@ public class Color {
 
     private static final Pattern COLOR_PATTERN = Pattern.compile("<(#[a-fA-F0-9]{6})>(.*?)</(#[a-fA-F0-9]{6})>");
 
+    public static List<String> hex(List<String> message) {
+        List<String> list = new ArrayList<>();
+
+        for (String string : message) {
+            list.add(hex(string));
+        }
+
+        return list;
+    }
     public static String hex(String message) {
 
         Matcher matcher = COLOR_PATTERN.matcher(message);
@@ -107,6 +118,10 @@ public class Color {
     }
 
     public static String setPlaceholders(String text, Player player) {
+        text = PlaceholderAPI.setPlaceholders(player, text);
+        return text;
+    }
+    public static List<String> setPlaceholders(List<String> text, Player player) {
         text = PlaceholderAPI.setPlaceholders(player, text);
         return text;
     }

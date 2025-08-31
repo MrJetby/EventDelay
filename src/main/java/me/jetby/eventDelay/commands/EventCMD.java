@@ -3,16 +3,16 @@ package me.jetby.eventDelay.commands;
 import me.jetby.eventDelay.Main;
 import me.jetby.eventDelay.configurations.Config;
 import me.jetby.eventDelay.configurations.Messages;
-import me.jetby.eventDelay.configurations.WebhookConfig;
 import me.jetby.eventDelay.manager.Assistants;
 import me.jetby.eventDelay.manager.Timer;
 import me.jetby.eventDelay.manager.Triggers;
 import me.jetby.eventDelay.tools.EventDelayAPI;
+import me.jetby.eventDelay.tools.Logger;
 import org.bukkit.*;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
-import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
@@ -22,11 +22,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static me.jetby.eventDelay.configurations.Config.CFG;
-import static me.jetby.eventDelay.configurations.Messages.MSG;
-import static me.jetby.eventDelay.manager.Assistants.*;
 import static me.jetby.eventDelay.tools.Actions.teleportButton;
 import static me.jetby.eventDelay.tools.Color.hex;
+import static me.jetby.eventDelay.tools.Color.setPlaceholders;
 import static me.jetby.eventDelay.tools.FormatTimer.stringFormat;
 
 public class EventCMD implements TabExecutor {
@@ -35,19 +33,27 @@ public class EventCMD implements TabExecutor {
     private final EventDelayAPI eventDelayAPI;
     private final Timer timer;
     private final Triggers triggers;
+    private final Messages messages;
+    private final Config config;
+    private final Assistants assistants;
 
     public EventCMD(Main plugin) {
         this.plugin = plugin;
         this.eventDelayAPI = plugin.getEventDelayAPI();
         this.timer = plugin.getTimer();
         this.triggers = plugin.getTriggers();
+        this.messages = plugin.getMessages();
+        this.assistants = plugin.getAssistants();
+        this.config = plugin.getCfg();
     }
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String[] args) {
+
+
         if (sender instanceof Player p) {
             if (args.length == 0) {
-                for (String msg : MSG().getStringList("messages.usage")) {
+                for (String msg : messages.getUsage()) {
                     sender.sendMessage(hex(msg, p));
                 }
                 return true;
@@ -55,56 +61,51 @@ public class EventCMD implements TabExecutor {
             String arg = args[0];
             switch (arg) {
                 case "delay": {
-                    if (Bukkit.getOnlinePlayers().size() < CFG().getInt("MinPlayers", 3)) {
-                        for (String m : MSG().getStringList("delay.noPlayers")) {
-                            m = hex(m, p);
+                    if (Bukkit.getOnlinePlayers().size() < config.getMinPlayers()) {
+                        for (String m : messages.getNoPlayers()) {
                             sender.sendMessage(m
-                                    .replace("{min_players}", Integer.toString(CFG().getInt("MinPlayers", 3)))
+                                    .replace("{min_players}", String.valueOf(config.getMinPlayers()))
                             );
                         }
                         return true;
                     }
-                    if (isEventActive(eventDelayAPI)) {
-                        for (String m : MSG().getStringList("delay.active")) {
+                    if (assistants.isEventActive()) {
+                        for (String m : messages.getActive()) {
                             m = m
                                     .replace("{time_to_start}", String.valueOf(eventDelayAPI.getDelay()))
                                     .replace("{time_to_start_string}", stringFormat(eventDelayAPI.getDelay()))
-                                    .replace("{prefix}", getNowEventPrefix(eventDelayAPI))
+                                    .replace("{prefix}", assistants.getNowEventPrefix())
                             ;
-                            m = hex(m, p);
-                            sender.sendMessage(m);
+                            sender.sendMessage(setPlaceholders(m, p));
                         }
                         return true;
                     } else {
-                        for (String m : MSG().getStringList("delay.time")) {
-                            m = hex(m, p);
-                            sender.sendMessage(m
+                        for (String m : messages.getTime()) {
+                            sender.sendMessage(setPlaceholders(m
                                     .replace("{time_to_start}", String.valueOf(eventDelayAPI.getDelay()))
-                                    .replace("{time_to_start_string}", stringFormat(eventDelayAPI.getDelay()))
-                            );
+                                    .replace("{time_to_start_string}", stringFormat(eventDelayAPI.getDelay())),p
+                            ));
                         }
                     }
                     break;
                 }
                 case "info": {
-                    if (isEventActive(eventDelayAPI)) {
+                    if (assistants.isEventActive()) {
 
-                        List<String> msg = CFG().getStringList("Events." + eventDelayAPI.getNowEvent() + ".activeInfo");
+                        List<String> msg = hex(config.getEvents().get(eventDelayAPI.getNowEvent()).getActiveInfo());
 
                         for (String m : msg) {
                             m = (m
-                                    .replace("{prefix}", getNowEventPrefix(eventDelayAPI))
+                                    .replace("{prefix}", assistants.getNowEventPrefix())
                                     .replace("{duration}", String.valueOf(eventDelayAPI.getDuration()))
                                     .replace("{duration_string}", stringFormat(eventDelayAPI.getDuration()))
-                                    .replace("{active_status}", activeStatus(eventDelayAPI))
+                                    .replace("{active_status}", assistants.activeStatus())
                             );
-                            m = hex(m, p);
-                            p.sendMessage(m);
+                            p.sendMessage(setPlaceholders(m, p));
                         }
 
                     } else {
-                        for (String msg : MSG().getStringList("delay.info")) {
-                            msg = hex(msg, p);
+                        for (String msg : messages.getInfo()) {
                             p.sendMessage(msg);
                         }
                     }
@@ -112,20 +113,20 @@ public class EventCMD implements TabExecutor {
                 }
                 case "start": {
                     if (!p.hasPermission("eventdelay.admin")) {
-                        p.sendMessage(hex(MSG().getString("messages.noPerm")));
-                        return true;
+                        p.sendMessage(messages.getNoPerm());
+                        break;
                     }
 
                     if (args.length==1) {
                         eventDelayAPI.setActivationStatus("false");
                         triggers.startRandomEvent();
-                        eventDelayAPI.setDelay(CFG().getInt("Timer", 1800));
-                        break;
+                        eventDelayAPI.setDelay(config.getTimer());
                     } else if (args.length==2) {
                         eventDelayAPI.setActivationStatus("false");
                         triggers.startEvent(args[1]);
-                        eventDelayAPI.setDelay(CFG().getInt("Timer", 1800));
+                        eventDelayAPI.setDelay(config.getTimer());
                     }
+                    break;
 
                 }
                 case "teleport": {
@@ -138,12 +139,12 @@ public class EventCMD implements TabExecutor {
                 }
                 case "stop": {
                     if (!p.hasPermission("eventdelay.admin")) {
-                        p.sendMessage(hex(MSG().getString("messages.noPerm")));
+                        p.sendMessage(messages.getNoPerm());
                         return true;
                     }
-                    if (isEventActive(eventDelayAPI)) {
+                    if (assistants.isEventActive()) {
                         eventDelayAPI.setOpeningTimer(0);
-                        sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "Ивент " + Assistants.getNowEventPrefix(eventDelayAPI) + " остановлен."));
+                        sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "Ивент " + assistants.getNowEventPrefix() + " остановлен."));
                         triggers.stopEvent(eventDelayAPI.getNowEvent());
 
 
@@ -154,7 +155,7 @@ public class EventCMD implements TabExecutor {
                 }
                 case "timer": {
                     if (!p.hasPermission("eventdelay.admin")) {
-                        p.sendMessage(hex(MSG().getString("messages.noPerm")));
+                        p.sendMessage(messages.getNoPerm());
                         return true;
                     }
 
@@ -169,7 +170,7 @@ public class EventCMD implements TabExecutor {
                         if (args[2].equalsIgnoreCase("duration")) {
 
                             if (eventDelayAPI.getNowEvent()!=null) {
-                                eventDelayAPI.setDuration(CFG().getInt("Events."+eventDelayAPI.getNowEvent()+".Duration", 300));
+                                eventDelayAPI.setDuration(config.getEvents().get(eventDelayAPI.getNowEvent()).getDuration());
                                 sender.sendMessage("Вы успешно сбросили время для таймера &a"+args[2]);
                             } else {
                                 sender.sendMessage(hex("&cНету активного ивента."));
@@ -178,14 +179,14 @@ public class EventCMD implements TabExecutor {
 
                         } else if (args[2].equalsIgnoreCase("activation")) {
                             if (eventDelayAPI.getNowEvent()!=null) {
-                                eventDelayAPI.setOpeningTimer(CFG().getInt("Events."+eventDelayAPI.getNowEvent()+".ActivationTime", 60));
+                                eventDelayAPI.setOpeningTimer(config.getEvents().get(eventDelayAPI.getNowEvent()).getActivationTime());
                                 sender.sendMessage("Вы успешно сбросили время для таймера &a"+args[2]);
                             } else {
                                 sender.sendMessage(hex("&cНету активного ивента."));
                             }
 
                         } else if (args[2].equalsIgnoreCase("delay")) {
-                            eventDelayAPI.setDelay(CFG().getInt("Timer", 1800));
+                            eventDelayAPI.setDelay(config.getTimer());
                             sender.sendMessage("Вы успешно сбросили время для таймера &a"+args[2]);
                         } else {
                             sender.sendMessage("Таймер "+args[2]+" не был найден.");
@@ -222,7 +223,7 @@ public class EventCMD implements TabExecutor {
                 }
                 case "setNext": {
                     if (!p.hasPermission("eventdelay.admin")) {
-                        p.sendMessage(hex(MSG().getString("messages.noPerm")));
+                        p.sendMessage(messages.getNoPerm());
                         return true;
                     }
                     if (args.length < 2) {
@@ -230,7 +231,7 @@ public class EventCMD implements TabExecutor {
                         return true;
                     }
 
-                    if (CFG().contains("Events." + args[1])) {
+                    if (config.getEvents().containsKey(args[1])) {
                         eventDelayAPI.setNextEvent(args[1]);
                         sender.sendMessage("Следующий ивент установлен на: " + ChatColor.GREEN + eventDelayAPI.getNextEvent());
                     } else {
@@ -240,25 +241,25 @@ public class EventCMD implements TabExecutor {
                 }
                 case "reload": {
                     if (!p.hasPermission("eventdelay.admin")) {
-                        p.sendMessage(hex(MSG().getString("messages.noPerm")));
+                        p.sendMessage(messages.getNoPerm());
                         return true;
                     }
-                    p.sendMessage(hex(MSG().getString("messages.reload"), p));
+                    p.sendMessage(messages.getReload());
 
-                    Config config = new Config();
-                    config.reloadCfg(plugin);
+                    plugin.setCfg(new Config(plugin));
+                    config.load();
+                    final FileConfiguration messagesFile = config.getFileConfiguration(plugin.getDataFolder().getAbsolutePath(), "messages.yml");
+                    final FileConfiguration webhookFile = config.getFileConfiguration(plugin.getDataFolder().getAbsolutePath(), "webhook.yml");
 
-                    Messages messages = new Messages();
-                    messages.reloadCfg(plugin);
+                    plugin.getMessages().load(messagesFile);
+                    plugin.getWebhookConfig().load(webhookFile);
 
-                    WebhookConfig webhookConfig = new WebhookConfig();
-                    webhookConfig.reloadCfg(plugin);
 
-                    eventDelayAPI.setOpeningTimer(CFG().getInt("Timer", 1800));
+                    eventDelayAPI.setOpeningTimer(config.getTimer());
 
-                    eventDelayAPI.setTimer(CFG().getInt("Timer", 1800));
-                    eventDelayAPI.setFreeze(CFG().getBoolean("Freeze", true));
-                    eventDelayAPI.setMinPlayers(CFG().getInt("MinPlayers", 3));
+                    eventDelayAPI.setTimer(config.getTimer());
+                    eventDelayAPI.setFreeze(config.isFreeze());
+                    eventDelayAPI.setMinPlayers(config.getMinPlayers());
 
                     eventDelayAPI.setPreviousEvent("none");
                     eventDelayAPI.setNowEvent("none");
@@ -266,19 +267,19 @@ public class EventCMD implements TabExecutor {
 
                     timer.initialize();
                     timer.startTimer();
-                    triggers.nextRandomEvent();
+                    assistants.createNextRandomEvent();
 
                     break;
                 }
                 case "activate": {
                     if (!p.hasPermission("eventdelay.admin")) {
-                        p.sendMessage(hex(MSG().getString("messages.noPerm")));
+                        p.sendMessage(messages.getNoPerm());
                         return true;
                     }
-                    if (CFG().getConfigurationSection("Events").getKeys(false).contains(eventDelayAPI.getNowEvent())) {
-                        if (isEventActive(eventDelayAPI)) {
+                    if (config.getEvents().containsKey(eventDelayAPI.getNowEvent())) {
+                        if (assistants.isEventActive()) {
                             timer.Activate();
-                            sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "Ивент " + getNowEventPrefix(eventDelayAPI) + " активирован."));
+                            sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "Ивент " + assistants.getNowEventPrefix() + " активирован."));
                         } else {
                             sender.sendMessage("Нету активных ивентов");
                         }
@@ -286,16 +287,14 @@ public class EventCMD implements TabExecutor {
                     break;
                 }
                 case "compass": {
-                    if (isEventActive(eventDelayAPI)) {
-                        if (CFG().getBoolean("Events." + eventDelayAPI.getNowEvent() + ".compass") && CFG().getString("Events." + eventDelayAPI.getNowEvent() + ".compass") != null) {
+                    if (assistants.isEventActive()) {
+                        if (assistants.isCompass()) {
 
-                            ConfigurationSection coordinateSection = CFG().getConfigurationSection("Events." + eventDelayAPI.getNowEvent() + ".coordinates");
+                            World world = Bukkit.getWorld(config.getEvents().get(eventDelayAPI.getNowEvent()).getCoordinatesWorld());
 
-                            World world = Bukkit.getWorld(coordinateSection.getString("world", "world"));
-
-                            String xString = hex(coordinateSection.getString("x", "0"), p);
-                            String yString = hex(coordinateSection.getString("y", "0"), p);
-                            String zString = hex(coordinateSection.getString("z", "0"), p);
+                            String xString = hex(config.getEvents().get(eventDelayAPI.getNowEvent()).getCoordinatesX(), p);
+                            String yString = hex(config.getEvents().get(eventDelayAPI.getNowEvent()).getCoordinatesY(), p);
+                            String zString = hex(config.getEvents().get(eventDelayAPI.getNowEvent()).getCoordinatesZ(), p);
 
                             int x = Integer.parseInt(xString);
                             int y = Integer.parseInt(yString);
@@ -307,18 +306,18 @@ public class EventCMD implements TabExecutor {
 
                                 Location targetLocation = new Location(world, x, y, z);
                                 p.setCompassTarget(targetLocation);
-                                p.sendMessage(hex(MSG().getString("compass.success"), p));
+                                p.sendMessage(setPlaceholders(messages.getSuccess(), p));
 
                             } else {
-                                p.sendMessage(hex(MSG().getString("compass.noItem"), p));
+                                p.sendMessage(setPlaceholders(messages.getNoItem(), p));
                             }
 
                         } else {
-                            p.sendMessage(hex(MSG().getString("compass.disabled"), p));
+                            p.sendMessage(setPlaceholders(messages.getDisabled(), p));
                         }
                     } else {
-                        for (String msg : MSG().getStringList("delay.info")) {
-                            msg = hex(msg, p);
+                        for (String msg : messages.getInfo()) {
+                            msg = setPlaceholders(msg, p);
                             p.sendMessage(msg);
                         }
                     }
@@ -329,22 +328,22 @@ public class EventCMD implements TabExecutor {
             switch (arg) {
                 case "start": {
                     if (!sender.hasPermission("eventdelay.admin")) {
-                        sender.sendMessage(MSG().getString("messages.noPerm"));
+                        sender.sendMessage(messages.getNoPerm());
                         return true;
                     }
                     eventDelayAPI.setActivationStatus("false");
                     triggers.startRandomEvent();
-                    eventDelayAPI.setDelay(CFG().getInt("Timer", 1800));
+                    eventDelayAPI.setDelay(config.getTimer());
                     break;
                 }
                 case "stop": {
                     if (!sender.hasPermission("eventdelay.admin")) {
-                        sender.sendMessage(MSG().getString("messages.noPerm"));
+                        sender.sendMessage(messages.getNoPerm());
                         return true;
                     }
-                    if (isEventActive(eventDelayAPI)) {
+                    if (assistants.isEventActive()) {
                         eventDelayAPI.setOpeningTimer(0);
-                        sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "Ивент " + Assistants.getNowEventPrefix(eventDelayAPI) + " остановлен."));
+                        sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "Ивент " + assistants.getNowEventPrefix() + " остановлен."));
                         triggers.stopEvent(eventDelayAPI.getNowEvent());
                     } else {
                         sender.sendMessage("Нету активных ивентов");
@@ -364,7 +363,7 @@ public class EventCMD implements TabExecutor {
                         if (args[2].equalsIgnoreCase("duration")) {
 
                             if (eventDelayAPI.getNowEvent()!=null) {
-                                eventDelayAPI.setDuration(CFG().getInt("Events."+eventDelayAPI.getNowEvent()+".Duration", 300));
+                                eventDelayAPI.setDuration(config.getEvents().get(eventDelayAPI.getNowEvent()).getDuration());
                                 sender.sendMessage("Вы успешно сбросили время для таймера &a"+args[2]);
                             } else {
                                 sender.sendMessage(hex("Нету активного ивента."));
@@ -373,14 +372,14 @@ public class EventCMD implements TabExecutor {
 
                         } else if (args[2].equalsIgnoreCase("activation")) {
                             if (eventDelayAPI.getNowEvent()!=null) {
-                                eventDelayAPI.setOpeningTimer(CFG().getInt("Events."+eventDelayAPI.getNowEvent()+".ActivationTime", 60));
+                                eventDelayAPI.setOpeningTimer(config.getEvents().get(eventDelayAPI.getNowEvent()).getActivationTime());
                                 sender.sendMessage("Вы успешно сбросили время для таймера "+args[2]);
                             } else {
                                 sender.sendMessage(hex("Нету активного ивента."));
                             }
 
                         } else if (args[2].equalsIgnoreCase("delay")) {
-                            eventDelayAPI.setDelay(CFG().getInt("Timer", 1800));
+                            eventDelayAPI.setDelay(config.getTimer());
                             sender.sendMessage("Вы успешно сбросили время для таймера "+args[2]);
                         } else {
                             sender.sendMessage("Таймер "+args[2]+" не был найден.");
@@ -413,9 +412,9 @@ public class EventCMD implements TabExecutor {
 
                     break;
                 }
-                case "next": {
+                case "setNext": {
                     if (!sender.hasPermission("eventdelay.admin")) {
-                        sender.sendMessage(MSG().getString("messages.noPerm"));
+                        sender.sendMessage(messages.getNoPerm());
                         return true;
                     }
                     if (args.length < 2) {
@@ -423,7 +422,7 @@ public class EventCMD implements TabExecutor {
                         return true;
                     }
 
-                    if (CFG().contains("Events." + args[1])) {
+                    if (config.getEvents().containsKey(args[1])) {
                         eventDelayAPI.setNextEvent(args[1]);
                         sender.sendMessage("Следующий ивент установлен на: " + ChatColor.GREEN + eventDelayAPI.getNextEvent());
                     } else {
@@ -433,24 +432,22 @@ public class EventCMD implements TabExecutor {
                 }
                 case "reload": {
                     if (!sender.hasPermission("eventdelay.admin")) {
-                        sender.sendMessage(MSG().getString("messages.noPerm"));
+                        sender.sendMessage(messages.getNoPerm());
                         return true;
                     }
-                    sender.sendMessage(MSG().getString("messages.reload"));
-                    Config config = new Config();
-                    config.reloadCfg(plugin);
+                    sender.sendMessage(messages.getReload());
+                    plugin.setCfg(new Config(plugin));
+                    config.load();
+                    final FileConfiguration messagesFile = config.getFileConfiguration(plugin.getDataFolder().getAbsolutePath(), "messages.yml");
+                    final FileConfiguration webhookFile = config.getFileConfiguration(plugin.getDataFolder().getAbsolutePath(), "webhook.yml");
+                    plugin.getMessages().load(messagesFile);
+                    plugin.getWebhookConfig().load(webhookFile);
 
-                    Messages messages = new Messages();
-                    messages.reloadCfg(plugin);
+                    eventDelayAPI.setOpeningTimer(config.getTimer());
 
-                    WebhookConfig webhookConfig = new WebhookConfig();
-                    webhookConfig.reloadCfg(plugin);
-
-                    eventDelayAPI.setOpeningTimer(CFG().getInt("Timer", 1800));
-
-                    eventDelayAPI.setTimer(CFG().getInt("Timer", 1800));
-                    eventDelayAPI.setFreeze(CFG().getBoolean("Freeze", true));
-                    eventDelayAPI.setMinPlayers(CFG().getInt("MinPlayers", 3));
+                    eventDelayAPI.setTimer(config.getTimer());
+                    eventDelayAPI.setFreeze(config.isFreeze());
+                    eventDelayAPI.setMinPlayers(config.getMinPlayers());
 
                     eventDelayAPI.setPreviousEvent("none");
                     eventDelayAPI.setNowEvent("none");
@@ -458,21 +455,21 @@ public class EventCMD implements TabExecutor {
 
                     timer.initialize();
                     timer.startTimer();
-                    triggers.nextRandomEvent();
+                    assistants.createNextRandomEvent();
 
                     break;
                 }
                 case "activate": {
                     if (!sender.hasPermission("eventdelay.admin")) {
-                        sender.sendMessage(MSG().getString("messages.noPerm"));
+                        sender.sendMessage(messages.getNoPerm());
                         return true;
                     }
-                    if (CFG().getConfigurationSection("Events").getKeys(false).contains(eventDelayAPI.getNowEvent())) {
-                        if (isEventActive(eventDelayAPI)) {
+                    if (config.getEvents().containsKey(eventDelayAPI.getNowEvent())) {
+                        if (assistants.isEventActive()) {
                             timer.Activate();
-                            sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "Ивент " + getNowEventPrefix(eventDelayAPI) + " активирован."));
-                        } else {
-                            sender.sendMessage("Нету активных ивентов");
+                            Logger.success("Ивент " + assistants.getNowEventPrefix() + " активирован.");
+                         } else {
+                            Logger.warn("Нету активного ивента чтобы активировать.");
                         }
                     }
                     break;
@@ -493,7 +490,7 @@ public class EventCMD implements TabExecutor {
             if (p.hasPermission("eventdelay.admin")) {
                 completions.add("delay");
                 completions.add("info");
-                if (isCompass(eventDelayAPI)) {
+                if (assistants.isCompass()) {
                     completions.add("compass");
                 }
                 completions.add("activate");
@@ -503,7 +500,7 @@ public class EventCMD implements TabExecutor {
                 completions.add("stop");
                 completions.add("reload");
             } else {
-                if (isCompass(eventDelayAPI)) {
+                if (assistants.isCompass()) {
                     completions.add("compass");
                 }
                 completions.add("delay");
@@ -541,9 +538,9 @@ public class EventCMD implements TabExecutor {
             if (args[0].equalsIgnoreCase("setNext")
                     || args[0].equalsIgnoreCase("start")) {
 
-                ConfigurationSection eventsSection = CFG().getConfigurationSection("Events");
-                if (eventsSection != null) {
-                    completions.addAll(eventsSection.getKeys(false));
+                List<String> events = new ArrayList<>(config.getEvents().keySet());
+                if (!events.isEmpty()) {
+                    completions.addAll(events);
                 }
 
                 String input = args[1].toLowerCase();
