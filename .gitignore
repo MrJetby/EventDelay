@@ -1,8 +1,0 @@
-*.iml
-.idea/
-.gradle/
-target/
-target/*
-build
-bukkit/build
-dependency-reduced-pom.xml
