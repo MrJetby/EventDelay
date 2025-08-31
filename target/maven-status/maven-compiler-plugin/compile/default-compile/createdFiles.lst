@@ -7,6 +7,7 @@ me\jetby\eventDelay\constructor\Events.class
 me\jetby\eventDelay\constructor\Groups.class
 me\jetby\eventDelay\constructor\Webhook.class
 me\jetby\eventDelay\tools\Actions.class
+me\jetby\eventDelay\tools\Version.class
 me\jetby\eventDelay\manager\Timer.class
 me\jetby\eventDelay\configurations\Config.class
 me\jetby\eventDelay\manager\Timer$1.class

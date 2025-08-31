@@ -16,8 +16,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class Version implements Listener {
     private final Main plugin;
-    private final String VERSION = "https://raw.githubusercontent.com/MrJetby/TreexBuyer3/refs/heads/master/VERSION";
-    private final String UPDATE = "https://raw.githubusercontent.com/MrJetby/TreexBuyer3/refs/heads/master/UPDATE_LINK";
+    private final String VERSION = "https://raw.githubusercontent.com/MrJetby/EventDelay/refs/heads/master/VERSION";
+    private final String UPDATE = "https://raw.githubusercontent.com/MrJetby/EventDelay/refs/heads/master/UPDATE_LINK";
 
 
     @EventHandler

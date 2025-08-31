@@ -42,6 +42,7 @@ public final class Main extends JavaPlugin {
         for (String str : version.getAlert()) {
             Logger.success(str);
         }
+
         getServer().getPluginManager().registerEvents(version, this);
 
         final FileConfiguration messagesFile = cfg.getFileConfiguration(getDataFolder().getAbsolutePath(), "messages.yml");

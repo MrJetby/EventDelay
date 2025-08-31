@@ -7,18 +7,18 @@ import org.bukkit.Bukkit;
 public class Logger {
 
     public void warn(String message) {
-        Bukkit.getConsoleSender().sendMessage("§e[TreexCastle] "+ message);
+        Bukkit.getConsoleSender().sendMessage("§e[EventDelay] "+ message);
     }
     public void info(String message) {
-        Bukkit.getConsoleSender().sendMessage("§a[TreexCastle] §f"+ message);
+        Bukkit.getConsoleSender().sendMessage("§a[EventDelay] §f"+ message);
     }
     public void success(String message) {
-        Bukkit.getConsoleSender().sendMessage("§a[TreexCastle] §a"+ message);
+        Bukkit.getConsoleSender().sendMessage("§a[EventDelay] §a"+ message);
     }
     public void error(String message) {
-        Bukkit.getConsoleSender().sendMessage("§c[TreexCastle] "+ message);
+        Bukkit.getConsoleSender().sendMessage("§c[EventDelay] "+ message);
     }
     public void msg(String message) {
-        Bukkit.getConsoleSender().sendMessage("§6[TreexCastle] §f"+ message);
+        Bukkit.getConsoleSender().sendMessage("§6[EventDelay] §f"+ message);
     }
 }
