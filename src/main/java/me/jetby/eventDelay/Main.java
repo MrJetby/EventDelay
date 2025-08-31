@@ -11,10 +11,11 @@ import me.jetby.eventDelay.manager.Timer;
 import me.jetby.eventDelay.manager.Triggers;
 import me.jetby.eventDelay.tools.EventDelayAPI;
 import me.jetby.eventDelay.tools.EventDelayExpansion;
+import me.jetby.eventDelay.tools.Logger;
+import me.jetby.eventDelay.tools.Version;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 
@@ -32,8 +33,16 @@ public final class Main extends JavaPlugin {
 
     @Override
     public void onEnable() {
+
         cfg = new Config(this);
         cfg.load();
+
+        Logger.success("Looking for updates..");
+        Version version = new Version(this);
+        for (String str : version.getAlert()) {
+            Logger.success(str);
+        }
+        getServer().getPluginManager().registerEvents(version, this);
 
         final FileConfiguration messagesFile = cfg.getFileConfiguration(getDataFolder().getAbsolutePath(), "messages.yml");
         final FileConfiguration webhookFile = cfg.getFileConfiguration(getDataFolder().getAbsolutePath(), "webhook.yml");
@@ -42,36 +51,7 @@ public final class Main extends JavaPlugin {
         messages.load(messagesFile);
         webhookConfig.load(webhookFile);
 
-        loadPlugin();
 
-
-    }
-    public void loadPlugin(Player player) {
-        eventDelayAPI = new EventDelayAPI(cfg.isFreeze(),
-                cfg.getTimer(),
-                cfg.getMinPlayers(),
-                "none",
-                "none",
-                "none");
-
-        assistants = new Assistants(this, eventDelayAPI);
-        triggers = new Triggers(this);
-        timer = new Timer(this);
-        timer.initialize();
-        timer.startTimer();
-        if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            new EventDelayExpansion(this).register();
-        }
-        getCommand("event").setExecutor(new EventCMD(this));
-
-        Bukkit.getScheduler().runTaskLater(this, ()-> {assistants.createNextRandomEvent();}, 5L);
-
-
-        new Metrics(this, 23730);
-
-        player.sendMessage("§aПлагин успешно запущен и готов к использованию!");
-    }
-    public void loadPlugin() {
         eventDelayAPI = new EventDelayAPI(cfg.isFreeze(),
                 cfg.getTimer(),
                 cfg.getMinPlayers(),
@@ -91,6 +71,7 @@ public final class Main extends JavaPlugin {
 
         Bukkit.getScheduler().runTaskLater(this, ()-> {assistants.createNextRandomEvent();}, 5L);
         new Metrics(this, 23730);
+
     }
 
 }
